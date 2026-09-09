@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Voto Consciente — ranking de parlamentares com dados públicos</title>
-<meta name="description" content="Ranking de deputados e senadores a partir de dados abertos oficiais: uso da cota parlamentar, presença, votações, projetos aprovados e sanções.">
+<title>Dignos — o voto é uma arma. Só entrega a quem for digno.</title>
+<meta name="description" content="Monte o Hall dos Dignos: escolha um candidato por cargo, veja o histórico público e baixe um PNG com os números para levar à urna.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,14 +12,14 @@
 <header class="topo">
   <div class="faixa">
     <div class="marca">
-      <span class="logo">VC</span>
+      <span class="logo" aria-hidden="true">⚔</span>
       <div>
-        <strong>Voto Consciente</strong>
-        <small>ranking de parlamentares só com dado oficial</small>
+        <strong>Dignos</strong>
+        <small>o voto é uma arma — só o digno empunha</small>
       </div>
     </div>
     <nav>
-      <a href="#urna">Sua urna</a>
+      <a href="#urna">Hall dos Dignos</a>
       <a href="#ranking">Quem está no cargo</a>
       <a href="#metodo">Como é calculado</a>
       <a href="#fontes">Fontes</a>
@@ -29,14 +29,13 @@
 
 <main>
   <section class="hero">
-    <h1>Em quem votar em <em>cada cargo</em> da urna — com dado público, não com achismo</h1>
+    <p class="epigrafe">Excalibur não se entrega a qualquer um. Mjölnir também não.</p>
+    <h1>O seu voto é uma <em>arma</em>. Só entrega a quem for <em>digno</em>.</h1>
     <p class="sub">
-      Escreva o que você defende e o estado onde vota. O site monta a
-      <strong>sua urna de 2026</strong> na ordem real:
-      deputado federal, deputado estadual, senador (1ª e 2ª vaga),
-      governador e vice, presidente e vice. Quem já teve mandato leva o
-      histórico de votos, presença e dinheiro público. Quem nunca teve aparece
-      com a ficha do TSE — e o site diz qual é o caso.
+      Escreva o que você defende. O site aponta quem pode empunhar cada cargo —
+      deputado federal, estadual, duas vagas de senador, governador e presidente.
+      Você nomeia os dignos. Depois baixa um PNG com os <strong>números</strong>
+      e leva pra urna. Dado público, não propaganda.
     </p>
 
     <div class="caixa-posicao">
@@ -54,7 +53,7 @@
         <button class="chip" data-exemplo="Sou progressista: direitos humanos, causa LGBT, igualdade racial, meio ambiente, povos indígenas e combate ao encarceramento em massa.">progressista</button>
         <button class="chip" data-exemplo="Quero acima de tudo transparência, combate à corrupção, prestação de contas e fim do orçamento secreto.">anticorrupção</button>
       </div>
-      <button id="calcular" class="botao-grande">Montar minha urna</button>
+      <button id="calcular" class="botao-grande">Quem é digno da minha arma</button>
     </div>
 
     <div id="perfil" class="perfil oculto">
@@ -67,17 +66,23 @@
 
   <section id="urna" class="painel">
     <div class="resumo-linha">
-      <h2>Sua urna de 2026</h2>
+      <h2>Hall dos Dignos</h2>
       <span id="urna-contagem" class="contagem"></span>
     </div>
     <p class="dica">
-      Um nome por cargo, na ordem em que a urna pede o voto. Não é ordem de
-      partido: é o cruzamento do seu texto com o que cada candidato fez (ou,
-      quando nunca teve mandato, com o que o TSE registra). Você decide.
+      A arma só responde a quem você nomear. As sugestões vêm do seu texto
+      cruzado com voto, presença e ficha do TSE — mas o Hall é seu.
+      Troque qualquer cargo e baixe o cartão com os números.
     </p>
+    <div class="acoes-hall">
+      <button type="button" id="baixar-hall" class="botao-ouro">Baixar PNG da urna</button>
+      <button type="button" id="aceitar-sugestoes" class="botao-slot">Aceitar todas as sugestões</button>
+      <button type="button" id="limpar-hall" class="botao-slot ghost">Esvaziar o Hall</button>
+    </div>
+    <p id="aviso-escolha" class="aviso-escolha oculto"></p>
     <div id="numeros-urna" class="numeros-urna" hidden></div>
     <div id="slots-urna" class="slots-urna">
-      <p class="carregando">Escreva sua posição acima para montar a urna.</p>
+      <p class="carregando">Escreva o que você defende para apontar os dignos.</p>
     </div>
   </section>
 
@@ -87,8 +92,9 @@
       <span id="cedula-contagem" class="contagem"></span>
     </div>
     <p class="dica">
-      Se a sugestão não convenceu, compare o cargo inteiro. Quem já tem mandato
-      federal aparece com o que fez; quem nunca teve aparece só com a ficha do TSE.
+      Não convenceu? Compare o cargo inteiro e toque em
+      <strong>Nomear digno</strong>. Quem já tem mandato federal aparece com o
+      que fez; quem nunca teve, só com a ficha do TSE.
     </p>
 
     <div class="escolha-uf">
@@ -207,7 +213,7 @@
 </div>
 
 <footer>
-  <p>Voto Consciente — código aberto, dados abertos. Feito para a eleição ser uma escolha informada.</p>
+  <p>Dignos — o voto é uma arma. Código aberto, dados abertos. Você decide quem empunha.</p>
 </footer>
 
 <script src="app.js"></script>

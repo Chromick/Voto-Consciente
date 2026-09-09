@@ -11,6 +11,11 @@ const ESTADO = {
     afinidade: 40, presenca: 15, participacao: 15,
     producao: 10, economia: 10, integridade: 10,
   },
+  dignos: {},
+  escolhendoSlot: null,
+  hallAtual: [],
+  chapas: null,
+  sugeridos: {},
 };
 
 const ROTULO_PESO = {
@@ -462,16 +467,121 @@ function linhaChapa(rotulo, pessoa) {
   return `<div>${rotulo}: <strong>${pessoa.urna || pessoa.nome}</strong> (${pessoa.partido || "—"}${pessoa.mandato ? " · mandato verificado" : ""})</div>`;
 }
 
-function montarSlot(def, item, extras) {
-  const slot = criar("article", `slot-urna${item ? " clickavel" : ""}`);
+function tituloSlot(def) {
+  return def.tituloDF && $("#c-uf").value === "DF" ? def.tituloDF : def.titulo;
+}
+
+function extrasDaChapa(def, item) {
+  if (!item || !ESTADO.chapas) return { alts: [] };
+  const { viceGov, vicePres, sup1, sup2 } = ESTADO.chapas;
+  if (def.senadoSlot != null) {
+    return {
+      sup1: parDaChapa(item.c, sup1),
+      sup2: parDaChapa(item.c, sup2),
+      alts: [],
+    };
+  }
+  const vices = def.vice === 4 ? viceGov : def.vice === 2 ? vicePres : [];
+  return { vice: parDaChapa(item.c, vices), alts: [] };
+}
+
+function salvarDignos() {
+  const uf = $("#c-uf") && $("#c-uf").value;
+  if (!uf) return;
+  const leve = {};
+  for (const [id, pacote] of Object.entries(ESTADO.dignos)) {
+    if (pacote && pacote.item && pacote.item.c) leve[id] = pacote.item.c.id;
+  }
+  localStorage.setItem(`dignos-${uf}`, JSON.stringify(leve));
+}
+
+function hidratarDignos(listas) {
+  if (Object.keys(ESTADO.dignos).length) return;
+  const uf = $("#c-uf") && $("#c-uf").value;
+  let salvo = {};
+  try { salvo = JSON.parse(localStorage.getItem(`dignos-${uf}`) || "{}"); }
+  catch (e) { return; }
+  for (const [slot, id] of Object.entries(salvo)) {
+    let c = null;
+    for (const lista of listas) {
+      c = lista.find((x) => x.id === id);
+      if (c) break;
+    }
+    if (!c) continue;
+    const af = afinidadeCandidato(c);
+    const item = { c, af, geral: notaCandidato(c, af) };
+    const def = SLOTS_URNA.find((s) => s.id === slot);
+    ESTADO.dignos[slot] = { item, extras: extrasDaChapa(def, item) };
+  }
+}
+
+function nomearDigno(slotId, item, extras) {
+  if (!item) return;
+  if (slotId === "sen-1" && ESTADO.dignos["sen-2"]?.item?.c?.id === item.c.id) {
+    delete ESTADO.dignos["sen-2"];
+  }
+  if (slotId === "sen-2" && ESTADO.dignos["sen-1"]?.item?.c?.id === item.c.id) {
+    delete ESTADO.dignos["sen-1"];
+  }
+  ESTADO.dignos[slotId] = { item, extras: extras || extrasDaChapa(SLOTS_URNA.find((s) => s.id === slotId), item) };
+  ESTADO.escolhendoSlot = null;
+  salvarDignos();
+  renderizarUrna();
+}
+
+function soltarDigno(slotId) {
+  delete ESTADO.dignos[slotId];
+  salvarDignos();
+  renderizarUrna();
+}
+
+function comecarEscolha(def) {
+  ESTADO.escolhendoSlot = def.id;
+  const cargo = def.cargo === "estadual" ? String(cargoEstadual($("#c-uf").value)) : String(def.cargo);
+  ESTADO.cargoAtivo = cargo;
+  LIMITE_CEDULA = 12;
+  const aviso = $("#aviso-escolha");
+  aviso.textContent = `Escolha agora o digno para ${tituloSlot(def)}. Toque em «Nomear digno» no card.`;
+  aviso.classList.remove("oculto");
+  if (typeof desenharAbasCargo === "function") desenharAbasCargo();
+  renderizarCedula();
+  $("#cedula").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function slotDoCargo(cargo, candidatoId) {
+  if (ESTADO.escolhendoSlot) {
+    const def = SLOTS_URNA.find((s) => s.id === ESTADO.escolhendoSlot);
+    const esperado = def.cargo === "estadual" ? cargoEstadual($("#c-uf").value) : def.cargo;
+    if (String(esperado) === String(cargo) || (def.ufFixa === "BR" && String(cargo) === "1")) {
+      return ESTADO.escolhendoSlot;
+    }
+  }
+  const mapa = { 6: "dep-fed", 7: "dep-est", 8: "dep-est", 3: "gov", 1: "pres" };
+  if (mapa[cargo]) return mapa[cargo];
+  if (String(cargo) === "5") {
+    const a = ESTADO.dignos["sen-1"]?.item?.c?.id;
+    const b = ESTADO.dignos["sen-2"]?.item?.c?.id;
+    if (!a) return "sen-1";
+    if (!b && a !== candidatoId) return "sen-2";
+    if (a === candidatoId) return "sen-1";
+    if (b === candidatoId) return "sen-2";
+    return "sen-2";
+  }
+  return null;
+}
+
+function montarSlot(def, item, extras, nomeado) {
+  const slot = criar("article", `slot-urna${item ? " clickavel" : ""}${nomeado ? " nomeado" : ""}`);
   const numero = item && item.c.numero != null ? String(item.c.numero) : "—";
   slot.appendChild(criar("div", "numero-voto", numero));
   const corpo = criar("div");
-  const titulo = def.tituloDF && $("#c-uf").value === "DF" ? def.tituloDF : def.titulo;
-  corpo.appendChild(criar("p", "cargo-slot", titulo));
+  corpo.appendChild(criar("p", "cargo-slot", tituloSlot(def)));
   if (!item) {
-    corpo.appendChild(criar("h3", null, "Sem sugestão"));
-    corpo.appendChild(criar("p", "porque", porqueSugestao(null)));
+    corpo.appendChild(criar("h3", null, "Ninguém nomeado"));
+    corpo.appendChild(criar("p", "porque", "Ainda não há digno neste cargo."));
+    const vazio = criar("button", "botao-slot ouro", "Escolher digno");
+    vazio.onclick = (e) => { e.stopPropagation(); comecarEscolha(def); };
+    corpo.appendChild(vazio);
     slot.appendChild(corpo);
     return slot;
   }
@@ -485,17 +595,38 @@ function montarSlot(def, item, extras) {
     extras.sup2 ? linhaChapa("2º suplente", extras.sup2) : "",
   ].filter(Boolean).join("");
   corpo.appendChild(chapa);
-  corpo.appendChild(criar("p", "porque", porqueSugestao(item)));
-  if (extras.alts && extras.alts.length) {
+  corpo.appendChild(criar("p", "porque",
+    nomeado ? "Você nomeou este digno." : `Sugestão: ${porqueSugestao(item)}`));
+  if (!nomeado && extras.alts && extras.alts.length) {
     const ul = criar("ul", "alts");
-    extras.alts.forEach((alt, i) => {
-      ul.appendChild(criar("li", null,
-        `Outra opção: ${alt.c.urna || alt.c.nome} (${alt.c.numero ?? "—"}${alt.af ? ` · ${alt.af.valor}% afinidade` : ""})`));
+    extras.alts.forEach((alt) => {
+      const li = criar("li", null,
+        `Outra opção: ${alt.c.urna || alt.c.nome} (${alt.c.numero ?? "—"}${alt.af ? ` · ${alt.af.valor}% afinidade` : ""})`);
+      li.style.cursor = "pointer";
+      li.onclick = (e) => {
+        e.stopPropagation();
+        nomearDigno(def.id, alt, extrasDaChapa(def, alt));
+      };
+      ul.appendChild(li);
     });
     corpo.appendChild(ul);
   }
   const base = baseDeAvaliacao(item.c);
   corpo.appendChild(criar("span", "selo-base", base.texto));
+  const acoes = criar("div");
+  const trocar = criar("button", "botao-slot", "Trocar");
+  trocar.onclick = (e) => { e.stopPropagation(); comecarEscolha(def); };
+  acoes.appendChild(trocar);
+  if (nomeado) {
+    const soltar = criar("button", "botao-slot ghost", "Soltar");
+    soltar.onclick = (e) => { e.stopPropagation(); soltarDigno(def.id); };
+    acoes.appendChild(soltar);
+  } else {
+    const nomear = criar("button", "botao-slot ouro", "Nomear digno");
+    nomear.onclick = (e) => { e.stopPropagation(); nomearDigno(def.id, item, extras); };
+    acoes.appendChild(nomear);
+  }
+  corpo.appendChild(acoes);
   slot.appendChild(corpo);
   slot.onclick = () => abrirSugestao(item);
   return slot;
@@ -522,17 +653,28 @@ async function renderizarUrna() {
     carregarCedula(uf, 10),
   ]);
 
+  ESTADO.chapas = {
+    viceGov: viceGov.candidatos || [],
+    vicePres: vicePres.candidatos || [],
+    sup1: sup1.candidatos || [],
+    sup2: sup2.candidatos || [],
+  };
+  hidratarDignos([
+    fed.candidatos || [], est.candidatos || [], sen.candidatos || [],
+    gov.candidatos || [], pres.candidatos || [],
+  ]);
+
   const senado = filaUrna(sen.candidatos || []);
-  const escolhidos = {};
-  const extras = {};
+  const sugeridos = {};
+  const extrasSug = {};
 
   for (const def of SLOTS_URNA) {
     if (def.senadoSlot != null) {
       const item = senado[def.senadoSlot] || null;
-      escolhidos[def.id] = item;
-      extras[def.id] = item ? {
-        sup1: parDaChapa(item.c, sup1.candidatos || []),
-        sup2: parDaChapa(item.c, sup2.candidatos || []),
+      sugeridos[def.id] = item;
+      extrasSug[def.id] = item ? {
+        sup1: parDaChapa(item.c, ESTADO.chapas.sup1),
+        sup2: parDaChapa(item.c, ESTADO.chapas.sup2),
         alts: senado.filter((x, i) => i !== def.senadoSlot && i < 4).slice(0, 2),
       } : { alts: [] };
       continue;
@@ -541,32 +683,39 @@ async function renderizarUrna() {
     const bloco = cargo === 6 ? fed : cargo === depEst ? est : cargo === 3 ? gov : pres;
     const fila = filaUrna(bloco.candidatos || []);
     const item = fila[0] || null;
-    escolhidos[def.id] = item;
-    const viceLista = def.vice === 4 ? (viceGov.candidatos || []) : def.vice === 2 ? (vicePres.candidatos || []) : [];
-    extras[def.id] = {
+    sugeridos[def.id] = item;
+    const viceLista = def.vice === 4 ? ESTADO.chapas.viceGov : def.vice === 2 ? ESTADO.chapas.vicePres : [];
+    extrasSug[def.id] = {
       vice: item ? parDaChapa(item.c, viceLista) : null,
       alts: fila.slice(1, 3),
     };
   }
+  ESTADO.sugeridos = { itens: sugeridos, extras: extrasSug };
 
   alvo.innerHTML = "";
   faixa.innerHTML = "";
   faixa.hidden = false;
+  ESTADO.hallAtual = [];
+  let nomeados = 0;
   for (const def of SLOTS_URNA) {
-    const item = escolhidos[def.id];
+    const manual = ESTADO.dignos[def.id];
+    const item = manual ? manual.item : sugeridos[def.id];
+    const extras = manual ? (manual.extras || extrasDaChapa(def, item)) : extrasSug[def.id];
+    if (manual) nomeados += 1;
+    ESTADO.hallAtual.push({ def, item, extras, nomeado: !!manual });
     const titulo = def.tituloDF && uf === "DF" && def.id === "dep-est" ? "Dep. distrital" : def.curto;
     const dig = criar("div", "digito",
       `<small>${titulo}</small><b>${item && item.c.numero != null ? item.c.numero : "—"}</b>`);
     faixa.appendChild(dig);
-    alvo.appendChild(montarSlot(def, item, extras[def.id]));
+    alvo.appendChild(montarSlot(def, item, extras || { alts: [] }, !!manual));
   }
 
-  const comHistorico = Object.values(escolhidos).filter((x) => x && x.c.mandato).length;
   $("#urna-contagem").textContent =
-    `${uf} · ${SLOTS_URNA.length} cargos · ${comHistorico} sugestões com mandato federal verificado`;
+    `${uf} · ${nomeados}/${SLOTS_URNA.length} nomeados por você`;
+  if (!ESTADO.escolhendoSlot) $("#aviso-escolha").classList.add("oculto");
   if (!ESTADO.perfil) {
     const aviso = criar("p", "dica");
-    aviso.textContent = "Sem o seu texto, a ordem usa só quem já trabalha no cargo e a ficha do TSE. Escreva sua posição para personalizar.";
+    aviso.textContent = "Sem o seu texto, as sugestões usam só o trabalho no cargo e a ficha do TSE. Escreva para apontar dignos à sua imagem.";
     alvo.prepend(aviso);
   }
 }
@@ -639,7 +788,25 @@ function cardCandidato(item, posicao) {
     badges.appendChild(criar("span", "badge ok", `registro ${c.situacao.toLowerCase()}`));
   }
   if (c.reeleicao) badges.appendChild(criar("span", "badge", "tenta reeleição"));
+  const ja = Object.values(ESTADO.dignos).some((d) => d?.item?.c?.id === c.id);
+  if (ja) {
+    card.classList.add("digno-do-cargo");
+    badges.appendChild(criar("span", "badge ok", "no Hall"));
+  }
   card.appendChild(badges);
+
+  const nomear = criar("button", "botao-slot ouro", ja ? "Já está no Hall" : "Nomear digno deste cargo");
+  nomear.disabled = ja;
+  nomear.onclick = (e) => {
+    e.stopPropagation();
+    const slot = slotDoCargo(c.cargo, c.id);
+    if (!slot) return;
+    const def = SLOTS_URNA.find((s) => s.id === slot);
+    const item = { c, af, geral };
+    nomearDigno(slot, item, extrasDaChapa(def, item));
+    $("#urna").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  card.appendChild(nomear);
 
   card.onclick = () => (c.mandato ? abrirDetalhe(c.mandato.id) : abrirCandidato(c));
   return card;
@@ -731,6 +898,8 @@ async function renderizarCedula() {
     `${avaliaveis.length + demais.length} candidatos · ${avaliaveis.length} com mandato para conferir`;
 }
 
+let desenharAbasCargo = () => {};
+
 function montarCedula() {
   const indice = ESTADO.cedula;
   if (!indice) return;
@@ -743,7 +912,7 @@ function montarCedula() {
 
   const ordemAbas = ["6", "7", "8", "5", "3", "1"];
   const abas = $("#abas-cargo");
-  const desenharAbas = () => {
+  desenharAbasCargo = () => {
     const uf = seletor.value;
     abas.innerHTML = "";
     const disponiveis = ordemAbas
@@ -755,21 +924,23 @@ function montarCedula() {
       b.onclick = () => {
         ESTADO.cargoAtivo = cod;
         LIMITE_CEDULA = 12;
-        desenharAbas();
+        desenharAbasCargo();
         renderizarCedula();
       };
       abas.appendChild(b);
     }
     if (!disponiveis.some(([cod]) => String(cod) === String(ESTADO.cargoAtivo))) {
       ESTADO.cargoAtivo = disponiveis.length ? disponiveis[0][0] : null;
-      desenharAbas();
+      desenharAbasCargo();
     }
   };
 
   seletor.onchange = () => {
     localStorage.setItem("uf", seletor.value);
+    ESTADO.dignos = {};
+    ESTADO.escolhendoSlot = null;
     LIMITE_CEDULA = 12;
-    desenharAbas();
+    desenharAbasCargo();
     renderizarCedula();
     renderizarUrna();
   };
@@ -780,7 +951,7 @@ function montarCedula() {
   $("#c-mais").onclick = () => { LIMITE_CEDULA += 24; renderizarCedula(); };
 
   ESTADO.cargoAtivo = "6";
-  desenharAbas();
+  desenharAbasCargo();
   renderizarCedula();
   renderizarUrna();
 }
@@ -1024,6 +1195,122 @@ function montarFontes() {
     `${ESTADO.meta.total_parlamentares} parlamentares.`;
 }
 
+function quebrarTexto(ctx, texto, max) {
+  const palavras = String(texto || "").split(/\s+/);
+  const linhas = [];
+  let atual = "";
+  for (const p of palavras) {
+    const t = atual ? `${atual} ${p}` : p;
+    if (ctx.measureText(t).width <= max) atual = t;
+    else { if (atual) linhas.push(atual); atual = p; }
+  }
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+function desenharHall(ctx, W, H) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#1a160c");
+  g.addColorStop(0.45, "#0c0d11");
+  g.addColorStop(1, "#07080b");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#e3c565";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(28, 28, W - 56, H - 56);
+
+  ctx.fillStyle = "#e3c565";
+  ctx.font = "700 22px Georgia, serif";
+  ctx.textAlign = "center";
+  ctx.fillText("O VOTO É UMA ARMA", W / 2, 86);
+  ctx.fillStyle = "#f4ead0";
+  ctx.font = "700 64px Georgia, serif";
+  ctx.fillText("HALL DOS DIGNOS", W / 2, 160);
+  const uf = $("#c-uf").value;
+  ctx.fillStyle = "#c4b48a";
+  ctx.font = "600 26px Segoe UI, sans-serif";
+  ctx.fillText(`${NOME_UF[uf] || uf}  ·  2026  ·  números para a urna`, W / 2, 208);
+
+  const linhas = ESTADO.hallAtual || [];
+  const topo = 250;
+  const altura = Math.min(230, (H - 380) / Math.max(linhas.length, 1));
+  linhas.forEach((pacote, i) => {
+    const y = topo + i * altura;
+    const { def, item, extras } = pacote;
+    ctx.fillStyle = i % 2 ? "rgba(227,197,101,.06)" : "rgba(255,255,255,.03)";
+    ctx.fillRect(64, y, W - 128, altura - 16);
+    ctx.fillStyle = "#e3c565";
+    ctx.textAlign = "left";
+    ctx.font = "700 22px Segoe UI, sans-serif";
+    ctx.fillText(tituloSlot(def).toUpperCase(), 88, y + 38);
+    const numero = item && item.c.numero != null ? String(item.c.numero) : "—";
+    ctx.fillStyle = "#e3c565";
+    ctx.font = "800 72px Segoe UI, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(numero, W - 88, y + altura - 48);
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#f4ead0";
+    ctx.font = "700 34px Segoe UI, sans-serif";
+    const nome = item ? (item.c.urna || item.c.nome) : "em branco";
+    const linhasNome = quebrarTexto(ctx, nome, W - 420);
+    linhasNome.slice(0, 2).forEach((ln, k) => ctx.fillText(ln, 88, y + 84 + k * 38));
+    ctx.fillStyle = "#9a9178";
+    ctx.font = "500 22px Segoe UI, sans-serif";
+    const vice = extras && extras.vice ? `vice: ${extras.vice.urna || extras.vice.nome}` : "";
+    const meta = item ? `${item.c.partido || ""} ${vice}`.trim() : "cargo sem digno nomeado";
+    ctx.fillText(meta, 88, y + altura - 28);
+  });
+
+  ctx.fillStyle = "#e3c565";
+  ctx.textAlign = "center";
+  ctx.font = "italic 22px Georgia, serif";
+  ctx.fillText("Excalibur não se entrega a qualquer um. Mjölnir também não.", W / 2, H - 90);
+  ctx.fillStyle = "#7a7260";
+  ctx.font = "500 18px Segoe UI, sans-serif";
+  ctx.fillText("Dignos  ·  dado público  ·  você decide quem empunha", W / 2, H - 54);
+}
+
+async function baixarHall() {
+  if (!ESTADO.hallAtual.length) {
+    await renderizarUrna();
+  }
+  if (!ESTADO.hallAtual.length) return;
+  const W = 1080, H = 1920;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  desenharHall(canvas.getContext("2d"), W, H);
+  const uf = $("#c-uf").value || "BR";
+  const nome = `hall-dos-dignos-${uf}-2026.png`;
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+}
+
+function aceitarSugestoes() {
+  const s = ESTADO.sugeridos;
+  if (!s || !s.itens) return;
+  for (const def of SLOTS_URNA) {
+    if (s.itens[def.id]) {
+      ESTADO.dignos[def.id] = { item: s.itens[def.id], extras: s.extras[def.id] };
+    }
+  }
+  salvarDignos();
+  renderizarUrna();
+}
+
+function limparHall() {
+  ESTADO.dignos = {};
+  ESTADO.escolhendoSlot = null;
+  salvarDignos();
+  renderizarUrna();
+}
+
 function aplicarTexto() {
   const { vetor, achados } = vetorDeTexto($("#texto").value);
   ESTADO.perfil = vetor;
@@ -1068,6 +1355,9 @@ async function iniciar() {
     $("#urna").classList.add("oculto");
   }
 
+  if ($("#baixar-hall")) $("#baixar-hall").onclick = baixarHall;
+  if ($("#aceitar-sugestoes")) $("#aceitar-sugestoes").onclick = aceitarSugestoes;
+  if ($("#limpar-hall")) $("#limpar-hall").onclick = limparHall;
   $("#calcular").onclick = aplicarTexto;
   $("#texto").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) aplicarTexto(); };
   document.querySelectorAll(".chip").forEach((c) => {
