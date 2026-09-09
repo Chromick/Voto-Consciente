@@ -56,13 +56,19 @@ jobs:
               sys.exit(f"coleta suspeita: apenas {n} parlamentares")
           PY
 
+      # Guardar no repositorio e conveniencia (historico dos dados), nao
+      # requisito: o site e publicado a partir do diretorio de trabalho. Se
+      # outro run tiver empurrado dados nesse meio tempo, rebase e tenta de
+      # novo; se ainda assim falhar, seguimos para a publicacao.
       - name: Guardar os dados no repositorio
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dados
-          git diff --staged --quiet || git commit -m "dados: atualizacao automatica"
-          git push
+          git diff --staged --quiet && exit 0
+          git commit -m "dados: atualizacao automatica"
+          git push || (git pull --rebase --autostash origin main && git push)
 
       - name: Montar o site (web/ + dados/)
         run: |
