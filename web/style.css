@@ -59,6 +59,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 20px 60px; }
   background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio);
 }
 .caixa-posicao label { display: block; font-weight: 600; margin-bottom: 8px; }
+.linha-uf {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+}
+.linha-uf label { margin: 0; }
+.linha-uf select {
+  min-width: 220px; padding: 8px 12px; border-radius: 8px;
+  background: #0f141b; color: var(--texto); border: 1px solid var(--borda); font: inherit;
+}
 textarea {
   width: 100%; padding: 14px; border-radius: 10px; resize: vertical;
   background: #0f141b; color: var(--texto); border: 1px solid var(--borda);
@@ -301,3 +309,39 @@ footer { border-top: 1px solid var(--borda); padding: 24px 20px; text-align: cen
 .divisor-grupo p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--suave); }
 .divisor-grupo.forte { border-style: solid; border-color: rgba(46,204,113,.3); background: rgba(46,204,113,.05); }
 .divisor-grupo.forte h3 { color: var(--acento); }
+
+/* ---------- Urna montada ---------- */
+.numeros-urna {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px;
+  padding: 12px 14px; background: #0f141b; border: 1px solid var(--borda); border-radius: 12px;
+}
+.numeros-urna .digito {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 92px; padding: 8px 10px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--borda);
+}
+.numeros-urna .digito small { color: var(--suave); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.numeros-urna .digito b { font-size: 22px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+.slots-urna { display: grid; gap: 14px; }
+.slot-urna {
+  display: grid; grid-template-columns: 88px 1fr; gap: 16px; align-items: start;
+  padding: 16px 18px; background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio);
+}
+.slot-urna.clickavel { cursor: pointer; }
+.slot-urna.clickavel:hover { border-color: var(--acento2); }
+.slot-urna .numero-voto {
+  display: grid; place-items: center; min-height: 72px;
+  background: #0f141b; border-radius: 12px; border: 1px dashed var(--borda);
+  font-size: 28px; font-weight: 800; letter-spacing: 2px; font-variant-numeric: tabular-nums;
+}
+.slot-urna .cargo-slot { margin: 0 0 4px; color: var(--acento); font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.slot-urna h3 { margin: 0 0 4px; font-size: 22px; }
+.slot-urna .chapa { margin: 0 0 8px; color: var(--suave); font-size: 14px; }
+.slot-urna .porque { margin: 0; font-size: 14px; color: var(--texto); }
+.slot-urna .alts { margin: 10px 0 0; padding: 0; list-style: none; color: var(--suave); font-size: 13px; }
+.slot-urna .alts li { margin: 2px 0; }
+.slot-urna .selo-base { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--suave); }
+@media (max-width: 640px) {
+  .slot-urna { grid-template-columns: 1fr; }
+  .slot-urna .numero-voto { min-height: 56px; }
+}

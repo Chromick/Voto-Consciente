@@ -263,6 +263,27 @@ function renderizar() {
  * ------------------------------------------------------------------ */
 const CACHE_CEDULA = new Map();
 
+const NOME_UF = {
+  AC: "Acre", AL: "Alagoas", AM: "Amazonas", AP: "Amapá", BA: "Bahia",
+  CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás",
+  MA: "Maranhão", MG: "Minas Gerais", MS: "Mato Grosso do Sul", MT: "Mato Grosso",
+  PA: "Pará", PB: "Paraíba", PE: "Pernambuco", PI: "Piauí", PR: "Paraná",
+  RJ: "Rio de Janeiro", RN: "Rio Grande do Norte", RO: "Rondônia", RR: "Roraima",
+  RS: "Rio Grande do Sul", SC: "Santa Catarina", SE: "Sergipe", SP: "São Paulo",
+  TO: "Tocantins",
+};
+
+/* Ordem real da urna em 2026. Senado elege duas vagas (renovação de 2/3);
+   governador e presidente levam o vice na mesma chapa. */
+const SLOTS_URNA = [
+  { id: "dep-fed", cargo: 6, titulo: "Deputado Federal", curto: "Dep. federal" },
+  { id: "dep-est", cargo: "estadual", titulo: "Deputado Estadual", tituloDF: "Deputado Distrital", curto: "Dep. estadual" },
+  { id: "sen-1", cargo: 5, titulo: "Senador — 1ª vaga", curto: "Senador 1", senadoSlot: 0 },
+  { id: "sen-2", cargo: 5, titulo: "Senador — 2ª vaga", curto: "Senador 2", senadoSlot: 1 },
+  { id: "gov", cargo: 3, titulo: "Governador e vice-governador", curto: "Governador", vice: 4 },
+  { id: "pres", cargo: 1, titulo: "Presidente e vice-presidente", curto: "Presidente", vice: 2, ufFixa: "BR" },
+];
+
 async function carregarCedula(uf, cargo) {
   const chave = `${uf}-${cargo}`;
   if (CACHE_CEDULA.has(chave)) return CACHE_CEDULA.get(chave);
@@ -367,8 +388,187 @@ function rankearCedula(lista) {
   // sem nota: ordena pela afinidade estimada do partido e, sem perfil, por nome
   const demais = filtrados.filter((x) => x.geral == null)
     .sort((a, b) => (b.af ? b.af.valor : -1) - (a.af ? a.af.valor : -1)
+      || ((b.c.anteriores_anos || []).length - (a.c.anteriores_anos || []).length)
       || (a.c.urna || "").localeCompare(b.c.urna || ""));
   return { avaliaveis, demais };
+}
+
+function cargoEstadual(uf) {
+  return uf === "DF" ? 8 : 7;
+}
+
+function parDaChapa(titular, lista) {
+  if (!titular || !lista || !lista.length) return null;
+  const n = titular.numero;
+  const mesmos = lista.filter((c) => c.numero === n && c.id !== titular.id);
+  const semRenuncia = mesmos.filter((c) =>
+    !(c.alertas_tse || []).some((a) => /ren[uú]ncia/i.test(a.texto)));
+  const validos = semRenuncia.filter((c) =>
+    !(c.alertas_tse || []).some((a) => a.tipo === "inapto" || a.tipo === "registro"));
+  return validos[0] || semRenuncia[0] || mesmos[0] || null;
+}
+
+function filaDoCargo(lista) {
+  const { avaliaveis, demais } = rankearCedula(lista);
+  return [...avaliaveis, ...demais];
+}
+
+/* A urna e uma sugestao de VOTO, nao um ranking de "quem trabalha melhor".
+   Ter mandato ajuda a ter certeza, mas nao pode fazer um candidato de 8% de
+   afinidade passar na frente de um de 65% so porque o segundo nunca foi
+   deputado. A lista de "todos os candidatos" continua separada (rankearCedula). */
+function pontuacaoUrna(item) {
+  const af = item.af ? item.af.valor : null;
+  const nota = item.geral;
+  const registro = item.c.nota_registro ?? 70;
+  if (ESTADO.perfil) {
+    const afin = af == null ? 50 : af;
+    if (nota != null) return afin * 0.72 + nota * 0.28;
+    return afin * 0.88 + registro * 0.12;
+  }
+  if (nota != null) return nota;
+  return ((item.c.anteriores_anos || []).length) * 8 + registro * 0.2;
+}
+
+function filaUrna(lista) {
+  const { avaliaveis, demais } = rankearCedula(lista);
+  return [...avaliaveis, ...demais].sort((a, b) => pontuacaoUrna(b) - pontuacaoUrna(a));
+}
+
+function porqueSugestao(item) {
+  if (!item) return "Nenhum candidato válido com os filtros atuais.";
+  const partes = [];
+  if (item.c.mandato) partes.push("tem mandato federal para conferir");
+  if (item.af && !item.af.viaPartido) {
+    partes.push(`${item.af.valor}% de afinidade com o que você escreveu`);
+  } else if (item.af && item.af.viaPartido) {
+    partes.push(`afinidade estimada pelo partido ${item.c.partido} (${item.af.valor}%) — sem votos individuais`);
+  }
+  if (item.geral != null) partes.push(`nota ${Math.round(item.geral)} no que dá para medir`);
+  if (!partes.length) {
+    partes.push("melhor ficha de registro entre os candidatos válidos — sem mandato federal para avaliar o trabalho");
+  }
+  return partes.join(" · ");
+}
+
+function abrirSugestao(item) {
+  if (!item) return;
+  if (item.c.mandato) abrirDetalhe(item.c.mandato.id);
+  else abrirCandidato(item.c);
+}
+
+function linhaChapa(rotulo, pessoa) {
+  if (!pessoa) return "";
+  return `<div>${rotulo}: <strong>${pessoa.urna || pessoa.nome}</strong> (${pessoa.partido || "—"}${pessoa.mandato ? " · mandato verificado" : ""})</div>`;
+}
+
+function montarSlot(def, item, extras) {
+  const slot = criar("article", `slot-urna${item ? " clickavel" : ""}`);
+  const numero = item && item.c.numero != null ? String(item.c.numero) : "—";
+  slot.appendChild(criar("div", "numero-voto", numero));
+  const corpo = criar("div");
+  const titulo = def.tituloDF && $("#c-uf").value === "DF" ? def.tituloDF : def.titulo;
+  corpo.appendChild(criar("p", "cargo-slot", titulo));
+  if (!item) {
+    corpo.appendChild(criar("h3", null, "Sem sugestão"));
+    corpo.appendChild(criar("p", "porque", porqueSugestao(null)));
+    slot.appendChild(corpo);
+    return slot;
+  }
+  const nomeVice = extras.vice ? ` / ${extras.vice.urna || extras.vice.nome}` : "";
+  corpo.appendChild(criar("h3", null, `${item.c.urna || item.c.nome}${nomeVice}`));
+  const chapa = criar("div", "chapa");
+  chapa.innerHTML = [
+    `${item.c.partido || "sem partido"} · ${item.c.uf} · nº ${item.c.numero ?? "—"}`,
+    extras.vice ? linhaChapa("Vice", extras.vice) : "",
+    extras.sup1 ? linhaChapa("1º suplente", extras.sup1) : "",
+    extras.sup2 ? linhaChapa("2º suplente", extras.sup2) : "",
+  ].filter(Boolean).join("");
+  corpo.appendChild(chapa);
+  corpo.appendChild(criar("p", "porque", porqueSugestao(item)));
+  if (extras.alts && extras.alts.length) {
+    const ul = criar("ul", "alts");
+    extras.alts.forEach((alt, i) => {
+      ul.appendChild(criar("li", null,
+        `Outra opção: ${alt.c.urna || alt.c.nome} (${alt.c.numero ?? "—"}${alt.af ? ` · ${alt.af.valor}% afinidade` : ""})`));
+    });
+    corpo.appendChild(ul);
+  }
+  const base = baseDeAvaliacao(item.c);
+  corpo.appendChild(criar("span", "selo-base", base.texto));
+  slot.appendChild(corpo);
+  slot.onclick = () => abrirSugestao(item);
+  return slot;
+}
+
+async function renderizarUrna() {
+  const alvo = $("#slots-urna");
+  const faixa = $("#numeros-urna");
+  const uf = $("#c-uf") && $("#c-uf").value;
+  if (!alvo || !uf || !ESTADO.cedula) return;
+  alvo.innerHTML = "<p class='carregando'>Montando a urna do seu estado...</p>";
+  faixa.hidden = true;
+
+  const depEst = cargoEstadual(uf);
+  const [fed, est, sen, gov, viceGov, pres, vicePres, sup1, sup2] = await Promise.all([
+    carregarCedula(uf, 6),
+    carregarCedula(uf, depEst),
+    carregarCedula(uf, 5),
+    carregarCedula(uf, 3),
+    carregarCedula(uf, 4),
+    carregarCedula("BR", 1),
+    carregarCedula("BR", 2),
+    carregarCedula(uf, 9),
+    carregarCedula(uf, 10),
+  ]);
+
+  const senado = filaUrna(sen.candidatos || []);
+  const escolhidos = {};
+  const extras = {};
+
+  for (const def of SLOTS_URNA) {
+    if (def.senadoSlot != null) {
+      const item = senado[def.senadoSlot] || null;
+      escolhidos[def.id] = item;
+      extras[def.id] = item ? {
+        sup1: parDaChapa(item.c, sup1.candidatos || []),
+        sup2: parDaChapa(item.c, sup2.candidatos || []),
+        alts: senado.filter((x, i) => i !== def.senadoSlot && i < 4).slice(0, 2),
+      } : { alts: [] };
+      continue;
+    }
+    const cargo = def.cargo === "estadual" ? depEst : def.cargo;
+    const bloco = cargo === 6 ? fed : cargo === depEst ? est : cargo === 3 ? gov : pres;
+    const fila = filaUrna(bloco.candidatos || []);
+    const item = fila[0] || null;
+    escolhidos[def.id] = item;
+    const viceLista = def.vice === 4 ? (viceGov.candidatos || []) : def.vice === 2 ? (vicePres.candidatos || []) : [];
+    extras[def.id] = {
+      vice: item ? parDaChapa(item.c, viceLista) : null,
+      alts: fila.slice(1, 3),
+    };
+  }
+
+  alvo.innerHTML = "";
+  faixa.innerHTML = "";
+  faixa.hidden = false;
+  for (const def of SLOTS_URNA) {
+    const item = escolhidos[def.id];
+    const titulo = def.tituloDF && uf === "DF" && def.id === "dep-est" ? "Dep. distrital" : def.curto;
+    const dig = criar("div", "digito",
+      `<small>${titulo}</small><b>${item && item.c.numero != null ? item.c.numero : "—"}</b>`);
+    faixa.appendChild(dig);
+    alvo.appendChild(montarSlot(def, item, extras[def.id]));
+  }
+
+  const comHistorico = Object.values(escolhidos).filter((x) => x && x.c.mandato).length;
+  $("#urna-contagem").textContent =
+    `${uf} · ${SLOTS_URNA.length} cargos · ${comHistorico} sugestões com mandato federal verificado`;
+  if (!ESTADO.perfil) {
+    const aviso = criar("p", "dica");
+    aviso.textContent = "Sem o seu texto, a ordem usa só quem já trabalha no cargo e a ficha do TSE. Escreva sua posição para personalizar.";
+    alvo.prepend(aviso);
+  }
 }
 
 function cardCandidato(item, posicao) {
@@ -537,17 +737,21 @@ function montarCedula() {
   const seletor = $("#c-uf");
   const ufs = [...new Set(Object.keys(indice.contagem).map((k) => k.split("-")[0]))]
     .filter((u) => u !== "BR").sort();
-  seletor.innerHTML = ufs.map((u) => `<option value="${u}">${u}</option>`).join("");
+  seletor.innerHTML = ufs.map((u) =>
+    `<option value="${u}">${u} — ${NOME_UF[u] || u}</option>`).join("");
   seletor.value = localStorage.getItem("uf") || "SP";
 
+  const ordemAbas = ["6", "7", "8", "5", "3", "1"];
   const abas = $("#abas-cargo");
   const desenharAbas = () => {
     const uf = seletor.value;
     abas.innerHTML = "";
-    const disponiveis = Object.entries(indice.cargos)
-      .filter(([cod]) => indice.contagem[`${uf}-${cod}`] || indice.contagem[`BR-${cod}`]);
+    const disponiveis = ordemAbas
+      .filter((cod) => indice.cargos[cod] && (indice.contagem[`${uf}-${cod}`] || indice.contagem[`BR-${cod}`]))
+      .map((cod) => [cod, indice.cargos[cod]]);
     for (const [cod, nome] of disponiveis) {
-      const b = criar("button", `aba${ESTADO.cargoAtivo === cod ? " ativa" : ""}`, nome);
+      const rotulo = cod === "8" ? "Deputado Distrital" : nome;
+      const b = criar("button", `aba${String(ESTADO.cargoAtivo) === String(cod) ? " ativa" : ""}`, rotulo);
       b.onclick = () => {
         ESTADO.cargoAtivo = cod;
         LIMITE_CEDULA = 12;
@@ -556,7 +760,7 @@ function montarCedula() {
       };
       abas.appendChild(b);
     }
-    if (!disponiveis.some(([cod]) => cod === ESTADO.cargoAtivo)) {
+    if (!disponiveis.some(([cod]) => String(cod) === String(ESTADO.cargoAtivo))) {
       ESTADO.cargoAtivo = disponiveis.length ? disponiveis[0][0] : null;
       desenharAbas();
     }
@@ -567,9 +771,10 @@ function montarCedula() {
     LIMITE_CEDULA = 12;
     desenharAbas();
     renderizarCedula();
+    renderizarUrna();
   };
   for (const id of ["#c-so-historico", "#c-so-aptos"]) {
-    $(id).onchange = () => { LIMITE_CEDULA = 12; renderizarCedula(); };
+    $(id).onchange = () => { LIMITE_CEDULA = 12; renderizarCedula(); renderizarUrna(); };
   }
   $("#c-busca").oninput = () => { LIMITE_CEDULA = 12; renderizarCedula(); };
   $("#c-mais").onclick = () => { LIMITE_CEDULA += 24; renderizarCedula(); };
@@ -577,6 +782,7 @@ function montarCedula() {
   ESTADO.cargoAtivo = "6";
   desenharAbas();
   renderizarCedula();
+  renderizarUrna();
 }
 
 /* ------------------------------------------------------------------ *
@@ -784,7 +990,10 @@ function montarPesos() {
       ESTADO.pesos[chave] = +input.value;
       saida.textContent = input.value;
       renderizar();
-      if (ESTADO.cedula) renderizarCedula();
+      if (ESTADO.cedula) {
+        renderizarCedula();
+        renderizarUrna();
+      }
     };
     linha.appendChild(input);
     linha.appendChild(saida);
@@ -821,8 +1030,11 @@ function aplicarTexto() {
   ESTADO.termos = achados;
   mostrarPerfil();
   renderizar();
-  if (ESTADO.cedula) renderizarCedula();
-  $("#cedula").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (ESTADO.cedula) {
+    renderizarCedula();
+    renderizarUrna();
+  }
+  $("#urna").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function iniciar() {
@@ -851,7 +1063,10 @@ async function iniciar() {
   montarFontes();
   renderizar();
   if (ESTADO.cedula) montarCedula();
-  else $("#cedula").classList.add("oculto");
+  else {
+    $("#cedula").classList.add("oculto");
+    $("#urna").classList.add("oculto");
+  }
 
   $("#calcular").onclick = aplicarTexto;
   $("#texto").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) aplicarTexto(); };

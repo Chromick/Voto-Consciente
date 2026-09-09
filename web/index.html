@@ -19,7 +19,7 @@
       </div>
     </div>
     <nav>
-      <a href="#cedula">Eleição 2026</a>
+      <a href="#urna">Sua urna</a>
       <a href="#ranking">Quem está no cargo</a>
       <a href="#metodo">Como é calculado</a>
       <a href="#fontes">Fontes</a>
@@ -29,17 +29,21 @@
 
 <main>
   <section class="hero">
-    <h1>Qual parlamentar realmente combina com o que <em>você</em> pensa — e trabalha direito?</h1>
+    <h1>Em quem votar em <em>cada cargo</em> da urna — com dado público, não com achismo</h1>
     <p class="sub">
-      Escreva com suas palavras o que você defende. O site monta a
-      <strong>sua cédula de 2026</strong> — presidente, governador, senador,
-      deputado federal e estadual — e ordena os candidatos cruzando o que eles
-      <strong>votaram de verdade</strong>, quanto gastaram de dinheiro público,
-      quantas sessões faltaram e o que a Justiça Eleitoral registra sobre cada
-      candidatura.
+      Escreva o que você defende e o estado onde vota. O site monta a
+      <strong>sua urna de 2026</strong> na ordem real:
+      deputado federal, deputado estadual, senador (1ª e 2ª vaga),
+      governador e vice, presidente e vice. Quem já teve mandato leva o
+      histórico de votos, presença e dinheiro público. Quem nunca teve aparece
+      com a ficha do TSE — e o site diz qual é o caso.
     </p>
 
     <div class="caixa-posicao">
+      <div class="linha-uf">
+        <label for="c-uf">Onde você vota?</label>
+        <select id="c-uf"></select>
+      </div>
       <label for="texto">Sua posição política, do seu jeito</label>
       <textarea id="texto" rows="3" placeholder="Ex.: sou conservador nos costumes, cristão, defendo livre mercado e menos imposto, mas quero punição dura para corrupção e apoio segurança pública forte."></textarea>
       <div class="exemplos">
@@ -50,7 +54,7 @@
         <button class="chip" data-exemplo="Sou progressista: direitos humanos, causa LGBT, igualdade racial, meio ambiente, povos indígenas e combate ao encarceramento em massa.">progressista</button>
         <button class="chip" data-exemplo="Quero acima de tudo transparência, combate à corrupção, prestação de contas e fim do orçamento secreto.">anticorrupção</button>
       </div>
-      <button id="calcular" class="botao-grande">Ver meu Top 10</button>
+      <button id="calcular" class="botao-grande">Montar minha urna</button>
     </div>
 
     <div id="perfil" class="perfil oculto">
@@ -61,20 +65,33 @@
     </div>
   </section>
 
+  <section id="urna" class="painel">
+    <div class="resumo-linha">
+      <h2>Sua urna de 2026</h2>
+      <span id="urna-contagem" class="contagem"></span>
+    </div>
+    <p class="dica">
+      Um nome por cargo, na ordem em que a urna pede o voto. Não é ordem de
+      partido: é o cruzamento do seu texto com o que cada candidato fez (ou,
+      quando nunca teve mandato, com o que o TSE registra). Você decide.
+    </p>
+    <div id="numeros-urna" class="numeros-urna" hidden></div>
+    <div id="slots-urna" class="slots-urna">
+      <p class="carregando">Escreva sua posição acima para montar a urna.</p>
+    </div>
+  </section>
+
   <section id="cedula" class="painel">
     <div class="resumo-linha">
-      <h2>Sua cédula de 2026</h2>
+      <h2>Todos os candidatos deste cargo</h2>
       <span id="cedula-contagem" class="contagem"></span>
     </div>
     <p class="dica">
-      Todos os cargos que você vai votar, com os candidatos que pediram registro
-      à Justiça Eleitoral. Quem já tem mandato aparece com o que fez; quem nunca
-      teve aparece com o que o TSE informa — e dizemos qual é o caso.
+      Se a sugestão não convenceu, compare o cargo inteiro. Quem já tem mandato
+      federal aparece com o que fez; quem nunca teve aparece só com a ficha do TSE.
     </p>
 
     <div class="escolha-uf">
-      <label for="c-uf">Onde você vota?</label>
-      <select id="c-uf"></select>
       <label class="check"><input type="checkbox" id="c-so-historico"> Só quem tem histórico verificável</label>
       <label class="check"><input type="checkbox" id="c-so-aptos" checked> Só candidaturas válidas hoje</label>
       <input type="search" id="c-busca" placeholder="Buscar candidato...">
@@ -145,8 +162,8 @@
         <p>Uma limitação honesta: no Brasil quase toda votação divide o plenário na mesma linha. Por isso o <strong>espectro geral é a medida mais confiável</strong>, e os eixos temáticos usam só as votações que dividem mais naquele tema do que na média — são menos votações, e onde não sobrou votação suficiente o eixo vem de frentes e autorias. Cada perfil mostra sua % de confiança, e a afinidade é puxada para 50% quando há pouco dado.</p>
       </div>
       <div>
-        <h3>A cédula de 2026</h3>
-        <p>Os candidatos vêm do registro oficial de candidatura no TSE: <strong>20.911 pedidos</strong> para presidente, governador, senador, deputado federal e deputado estadual/distrital.</p>
+        <h3>A urna de 2026</h3>
+        <p>Os candidatos vêm do registro oficial no TSE: <strong>20.911 pedidos</strong> para todos os cargos que você vota — deputado federal, estadual ou distrital, duas vagas de senador, governador e vice, presidente e vice.</p>
         <p>A diferença que mais importa: <strong>a maioria dos candidatos nunca teve mandato federal</strong>. Deles não existe voto, presença, projeto nem cota parlamentar — não existe nada para avaliar. Este site não inventa nota nesse caso: mostra "sem nota", separa esses candidatos num bloco à parte e exibe só o que a Justiça Eleitoral informa (situação do registro, patrimônio declarado, ocupação, escolaridade, quantas vezes já concorreu).</p>
         <p>Quem <em>já é</em> deputado federal ou senador é reconhecido e leva junto todo o histórico do mandato. O vínculo é feito por nome, com regra conservadora: nome de urna só vale dentro do mesmo estado, para o senador do Tocantins não virar o xará candidato no Acre. Na dúvida, o site prefere não mostrar histórico a mostrar o histórico da pessoa errada.</p>
         <p><strong>O que ainda não temos:</strong> deputado estadual em exercício não é avaliado pelo trabalho, porque cada uma das 27 assembleias publica seus dados de um jeito diferente e não há uma fonte nacional. Aqui eles aparecem apenas com a ficha do TSE.</p>
