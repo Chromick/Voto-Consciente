@@ -308,13 +308,24 @@ async function carregarCedula(uf, cargo) {
 /* Quanto do candidato conseguimos de fato verificar. Vira selo no card:
    o eleitor precisa saber se a nota vem de registro publico de atuacao ou
    apenas da ficha de candidatura. */
+function ehEstreante(c) {
+  return !c.mandato;
+}
+
+function seloEstreante() {
+  const s = criar("div", "selo-geral selo-novo");
+  s.innerHTML = `<span class="estrela" aria-hidden="true">★</span><small>1º MANDATO</small>`;
+  s.title = "Nunca exerceu mandato federal: sem votos, presença, projetos ou cota para avaliar. É estreante neste nível.";
+  return s;
+}
+
 function baseDeAvaliacao(c) {
   if (c.mandato) return { nivel: "completo", texto: "mandato atual verificado" };
   const anteriores = (c.anteriores_anos || []).length;
   if (anteriores > 1) {
-    return { nivel: "parcial", texto: `${anteriores} candidaturas anteriores` };
+    return { nivel: "parcial", texto: `★ 1º mandato · ${anteriores} candidaturas anteriores` };
   }
-  return { nivel: "minimo", texto: "sem histórico parlamentar federal" };
+  return { nivel: "minimo", texto: "★ 1º mandato — estreante" };
 }
 
 /* A foto do TSE tem endereco previsivel; o JSON guarda so um booleano. */
@@ -612,7 +623,11 @@ function montarSlot(def, item, extras, nomeado) {
     corpo.appendChild(ul);
   }
   const base = baseDeAvaliacao(item.c);
-  corpo.appendChild(criar("span", "selo-base", base.texto));
+  if (ehEstreante(item.c)) {
+    corpo.appendChild(criar("span", "selo-base novo", "★ 1º mandato — estreante, sem nota de trabalho"));
+  } else {
+    corpo.appendChild(criar("span", "selo-base", base.texto));
+  }
   const acoes = criar("div");
   const trocar = criar("button", "botao-slot", "Trocar");
   trocar.onclick = (e) => { e.stopPropagation(); comecarEscolha(def); };
@@ -741,9 +756,7 @@ function cardCandidato(item, posicao) {
   if (geral != null) {
     card.appendChild(criar("div", "selo-geral", `${Math.round(geral)}<small>NOTA GERAL</small>`));
   } else {
-    const s = criar("div", "selo-geral sem-nota", `—<small>SEM NOTA</small>`);
-    s.title = "Não há mandato federal para avaliar: sem votos, presença, projetos ou cota.";
-    card.appendChild(s);
+    card.appendChild(seloEstreante());
   }
   if (af) {
     const selo = criar("div", "selo-afinidade", `${af.valor}% combina com você`);
@@ -787,7 +800,8 @@ function cardCandidato(item, posicao) {
   if (!(c.alertas_tse || []).length && c.situacao) {
     badges.appendChild(criar("span", "badge ok", `registro ${c.situacao.toLowerCase()}`));
   }
-  if (c.reeleicao) badges.appendChild(criar("span", "badge", "tenta reeleição"));
+  if (ehEstreante(c)) badges.appendChild(criar("span", "badge novo", "★ 1º mandato"));
+  else if (c.reeleicao) badges.appendChild(criar("span", "badge", "tenta reeleição"));
   const ja = Object.values(ESTADO.dignos).some((d) => d?.item?.c?.id === c.id);
   if (ja) {
     card.classList.add("digno-do-cargo");
@@ -835,8 +849,8 @@ function abrirCandidato(c) {
       <div class="cartao"><span>OCUPAÇÃO</span><strong>${c.ocupacao || "—"}</strong>
         <small>${c.instrucao || ""}</small></div>
     </div>
-    <p class="aviso-modal">Este candidato não tem mandato federal em exercício, então
-      não há votos, presença nem cota parlamentar para avaliar. O que aparece aqui é o
+    <p class="aviso-modal">★ Primeiro mandato neste nível: nunca exerceu cargo federal,
+      então não há votos, presença nem cota para avaliar. O que aparece aqui é o
       que consta no registro de candidatura do TSE.</p>
     ${alertas ? `<h3>Pontos de atenção no registro</h3><ul class="lista-alertas">${alertas}</ul>` : ""}
     ${anos.length ? `<h3>Já concorreu antes</h3>
@@ -880,10 +894,9 @@ async function renderizarCedula() {
 
   if (demais.length) {
     const aviso = criar("div", "divisor-grupo");
-    aviso.innerHTML = `<h3>Sem histórico federal para avaliar (${demais.length})</h3>
-      <p>Estes candidatos não têm voto, presença nem cota parlamentar registrados —
-      não é possível dar nota ao trabalho deles. Aparece o que a Justiça Eleitoral
-      informa: situação do registro, patrimônio declarado e candidaturas anteriores.
+    aviso.innerHTML = `<h3>★ Estreantes — 1º mandato (${demais.length})</h3>
+      <p>Não têm voto, presença nem cota parlamentar para avaliar: em vez de nota,
+      levam a estrela de primeiro mandato. Aparece o que a Justiça Eleitoral informa.
       ${ESTADO.perfil ? "A afinidade mostrada é estimada pela média do partido." : ""}</p>`;
     alvo.appendChild(aviso);
     demais.slice(0, LIMITE_CEDULA).forEach((item, i) =>
@@ -1251,13 +1264,16 @@ function desenharHall(ctx, W, H) {
     ctx.textAlign = "left";
     ctx.fillStyle = "#f4ead0";
     ctx.font = "700 34px Segoe UI, sans-serif";
-    const nome = item ? (item.c.urna || item.c.nome) : "em branco";
+    const estreante = item && ehEstreante(item.c);
+    const nome = item ? `${estreante ? "★ " : ""}${item.c.urna || item.c.nome}` : "em branco";
     const linhasNome = quebrarTexto(ctx, nome, W - 420);
     linhasNome.slice(0, 2).forEach((ln, k) => ctx.fillText(ln, 88, y + 84 + k * 38));
-    ctx.fillStyle = "#9a9178";
+    ctx.fillStyle = estreante ? "#e3c565" : "#9a9178";
     ctx.font = "500 22px Segoe UI, sans-serif";
     const vice = extras && extras.vice ? `vice: ${extras.vice.urna || extras.vice.nome}` : "";
-    const meta = item ? `${item.c.partido || ""} ${vice}`.trim() : "cargo sem digno nomeado";
+    const meta = !item ? "cargo sem digno nomeado"
+      : estreante ? `★ 1º mandato  ·  ${item.c.partido || ""} ${vice}`.trim()
+      : `${item.c.partido || ""} ${vice}`.trim();
     ctx.fillText(meta, 88, y + altura - 28);
   });
 

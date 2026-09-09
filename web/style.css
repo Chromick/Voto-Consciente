@@ -296,7 +296,6 @@ footer { border-top: 1px solid var(--borda); padding: 24px 20px; text-align: cen
 .ficha-tse span { color: var(--suave); }
 .ficha-tse b { color: var(--claro); text-align: right; }
 
-.card.base-minimo { border-left: 3px solid var(--borda); }
 .card.base-parcial { border-left: 3px solid #d8a34a; }
 .card.base-completo { border-left: 3px solid var(--acento); }
 .selo-afinidade.fraco { opacity: .72; border-style: dashed; }
@@ -310,6 +309,24 @@ footer { border-top: 1px solid var(--borda); padding: 24px 20px; text-align: cen
 .oculto { display: none !important; }
 
 .selo-geral.sem-nota { color: var(--suave); opacity: .5; }
+.selo-geral.selo-novo {
+  color: var(--ouro);
+  min-width: 76px;
+}
+.selo-geral.selo-novo .estrela {
+  display: block;
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(227,197,101,.45));
+}
+.selo-geral.selo-novo small { color: var(--ouro); letter-spacing: .08em; }
+.badge.novo {
+  background: rgba(227,197,101,.12);
+  color: var(--ouro);
+  border-color: rgba(227,197,101,.45);
+}
+.selo-base.novo { color: var(--ouro); }
+.card.base-minimo { border-left: 3px solid var(--ouro); }
 .divisor-grupo {
   grid-column: 1 / -1; margin: 26px 0 4px; padding: 16px 18px;
   background: var(--painel2); border: 1px dashed var(--borda); border-radius: 12px;
