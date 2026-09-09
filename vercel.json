@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "mkdir -p site && cp -r web/* site/ && cp -r dados site/dados",
+  "outputDirectory": "site",
+  "framework": null,
+  "headers": [
+    {
+      "source": "/dados/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=600, stale-while-revalidate=86400"
+        }
+      ]
+    }
+  ]
+}
