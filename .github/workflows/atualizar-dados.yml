@@ -31,7 +31,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      # O ETL nao tem dependencia externa: e stdlib puro.
+      # O TSE bloqueia qualquer cliente que nao seja navegador de verdade (403
+      # por impressao digital de TLS - nem curl com todos os cabecalhos passa),
+      # entao as candidaturas de 2026 sao coletadas com um Chromium headless.
+      # E a UNICA etapa que precisa de dependencia externa; se falhar, o site
+      # publica a cedula ja versionada em dados/cedula.
+      - name: Instalar navegador para a coleta do TSE
+        run: |
+          python -m pip install --quiet playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Coletar candidaturas de 2026 (TSE)
+        continue-on-error: true
+        timeout-minutes: 45
+        run: python tools/coletar_tse.py
+
+      # O resto do ETL nao tem dependencia externa: e stdlib puro.
       # Se as APIs do governo estiverem fora do ar, a coleta falha mas o site
       # continua publicando os dados ja versionados em dados/ - melhor um site
       # com dado da semana passada do que site fora do ar. A etapa seguinte
@@ -48,12 +63,18 @@ jobs:
       - name: Conferir se gerou dado valido
         run: |
           python - <<'PY'
-          import json, sys
+          import json, pathlib, sys
           d = json.load(open("dados/ranking.json", encoding="utf-8"))
           n = len(d["parlamentares"])
           print("parlamentares:", n)
           if n < 400:
               sys.exit(f"coleta suspeita: apenas {n} parlamentares")
+          idx = pathlib.Path("dados/cedula/indice.json")
+          if idx.exists():
+              c = json.loads(idx.read_text(encoding="utf-8"))
+              print("candidaturas 2026:", c["total"])
+              if c["total"] < 15000:
+                  sys.exit(f"cedula suspeita: apenas {c['total']} candidaturas")
           PY
 
       # Guardar no repositorio e conveniencia (historico dos dados), nao

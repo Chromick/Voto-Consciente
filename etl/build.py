@@ -1,4 +1,4 @@
-"""Pipeline completo: baixa dados publicos -> gera os JSON estaticos do site.
+﻿"""Pipeline completo: baixa dados publicos -> gera os JSON estaticos do site.
 
 Uso:
     python -m etl.build                      # ano corrente, Camara + Senado
@@ -17,7 +17,7 @@ import datetime as dt
 import shutil
 
 from . import espectro, notas
-from .fontes import camara, cota, integridade, senado
+from .fontes import camara, cota, integridade, senado, tse
 from .temas import exportar_lexico
 from .util import DADOS, RAIZ, log, salvar_json
 
@@ -31,6 +31,10 @@ FONTES_CREDITO = [
     {"nome": "Senado Federal - Dados Abertos",
      "url": "https://legis.senado.leg.br/dadosabertos/",
      "usado": "senadores, votacoes nominais, licencas, autorias"},
+    {"nome": "TSE - Divulgacao de Candidaturas e Contas Eleitorais",
+     "url": "https://divulgacandcontas.tse.jus.br/divulga/",
+     "usado": "candidaturas de 2026 em todos os cargos: situacao do registro, "
+              "patrimonio declarado, ocupacao, escolaridade e coligacao"},
     {"nome": "TCU - Inabilitados",
      "url": "https://contas.tcu.gov.br/ords/f?p=1660:3",
      "usado": "sancao oficial por contas julgadas irregulares"},
@@ -66,7 +70,7 @@ def main() -> None:
     posicao_partidos: dict[str, dict] = {}
 
     if "camara" in casas:
-        log("\n[1/5] Camara dos Deputados")
+        log("\n[1/6] Camara dos Deputados")
         leg = camara.legislatura_atual()
         deps = camara.deputados(leg)
         camara.frentes(deps, leg)
@@ -77,12 +81,12 @@ def main() -> None:
         espectro.estimar(deps, resultado.get("matriz") or {},
                          espectro.ancoras_por_frentes(deps))
         posicao_partidos = notas.posicao_dos_partidos(list(deps.values()))
-        log("\n[2/5] Cota parlamentar (dinheiro publico)")
+        log("\n[2/6] Cota parlamentar (dinheiro publico)")
         cota.carregar(deps, anos)
         pessoas.update({d["id"]: d for d in deps.values()})
 
     if "senado" in casas:
-        log("\n[3/5] Senado Federal")
+        log("\n[3/6] Senado Federal")
         sens = senado.senadores()
         resultado = senado.votos(sens, anos)
         senado.licencas_e_autorias(sens, anos)
@@ -93,11 +97,11 @@ def main() -> None:
                              espectro.ancoras_por_partido(sens, posicao_partidos))
         pessoas.update({s["id"]: s for s in sens.values()})
 
-    log("\n[4/5] Integridade (sancoes oficiais)")
+    log("\n[4/6] Integridade (sancoes oficiais)")
     integridade.aplicar(pessoas, com_noticias=args.noticias,
                         limite_noticias=args.limite_noticias)
 
-    log("\n[5/5] Consolidando eixos e notas")
+    log("\n[5/6] Consolidando eixos e notas")
     lista = list(pessoas.values())
     partidos = notas.consolidar_eixos(lista)
     notas.calcular_notas(lista)
@@ -128,6 +132,25 @@ def main() -> None:
         "partidos": partidos,
         "parlamentares": resumo,
     })
+    log("\n[6/6] Cedula de 2026 (TSE)")
+    resultado_tse = tse.carregar(publico)
+    if resultado_tse:
+        shutil.rmtree(DADOS / "cedula", ignore_errors=True)
+        contagem = {}
+        for chave, bloco in resultado_tse["cedula"].items():
+            salvar_json(DADOS / "cedula" / f"{chave}.json", bloco, mostrar=False)
+            contagem[chave] = len(bloco["candidatos"])
+        salvar_json(DADOS / "cedula" / "indice.json", {
+            "gerado_em": dt.datetime.now().isoformat(timespec="seconds"),
+            "ano": 2026,
+            "total": resultado_tse["total"],
+            "com_mandato": resultado_tse["casados"],
+            "cargos": tse.CARGOS_URNA,
+            "vinculados": tse.VINCULADOS,
+            "contagem": contagem,
+        }, compacto=False)
+        log(f"   -> dados/cedula/*.json ({len(contagem)} arquivos)")
+
     salvar_json(DADOS / "lexico.json", exportar_lexico())
     salvar_json(DADOS / "meta.json", {
         "gerado_em": dt.datetime.now().isoformat(timespec="seconds"),

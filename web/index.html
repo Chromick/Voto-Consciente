@@ -19,7 +19,8 @@
       </div>
     </div>
     <nav>
-      <a href="#ranking">Ranking</a>
+      <a href="#cedula">Eleição 2026</a>
+      <a href="#ranking">Quem está no cargo</a>
       <a href="#metodo">Como é calculado</a>
       <a href="#fontes">Fontes</a>
     </nav>
@@ -30,10 +31,12 @@
   <section class="hero">
     <h1>Qual parlamentar realmente combina com o que <em>você</em> pensa — e trabalha direito?</h1>
     <p class="sub">
-      Escreva com suas palavras o que você defende. O site cruza isso com o que os
-      513 deputados e 81 senadores <strong>votaram de verdade</strong>, quanto
-      gastaram de dinheiro público, quantas sessões faltaram e se têm sanção
-      oficial registrada.
+      Escreva com suas palavras o que você defende. O site monta a
+      <strong>sua cédula de 2026</strong> — presidente, governador, senador,
+      deputado federal e estadual — e ordena os candidatos cruzando o que eles
+      <strong>votaram de verdade</strong>, quanto gastaram de dinheiro público,
+      quantas sessões faltaram e o que a Justiça Eleitoral registra sobre cada
+      candidatura.
     </p>
 
     <div class="caixa-posicao">
@@ -56,6 +59,30 @@
       <div id="perfil-eixos" class="eixos-lista"></div>
       <p id="perfil-termos" class="termos"></p>
     </div>
+  </section>
+
+  <section id="cedula" class="painel">
+    <div class="resumo-linha">
+      <h2>Sua cédula de 2026</h2>
+      <span id="cedula-contagem" class="contagem"></span>
+    </div>
+    <p class="dica">
+      Todos os cargos que você vai votar, com os candidatos que pediram registro
+      à Justiça Eleitoral. Quem já tem mandato aparece com o que fez; quem nunca
+      teve aparece com o que o TSE informa — e dizemos qual é o caso.
+    </p>
+
+    <div class="escolha-uf">
+      <label for="c-uf">Onde você vota?</label>
+      <select id="c-uf"></select>
+      <label class="check"><input type="checkbox" id="c-so-historico"> Só quem tem histórico verificável</label>
+      <label class="check"><input type="checkbox" id="c-so-aptos" checked> Só candidaturas válidas hoje</label>
+      <input type="search" id="c-busca" placeholder="Buscar candidato...">
+    </div>
+
+    <div id="abas-cargo" class="abas"></div>
+    <div id="lista-cedula" class="grade"></div>
+    <button id="c-mais" class="botao-grande oculto">Ver mais candidatos</button>
   </section>
 
   <section id="ranking" class="painel">
@@ -82,9 +109,10 @@
     </div>
 
     <div class="resumo-linha">
-      <h2>Top 10 <span id="rotulo-contexto"></span></h2>
+      <h2>Quem está no cargo hoje <span id="rotulo-contexto"></span></h2>
       <span id="contagem" class="contagem"></span>
     </div>
+    <p class="dica">Os 513 deputados e 81 senadores em exercício, avaliados pelo mandato atual — inclusive quem não é candidato.</p>
 
     <div id="top10" class="grade"></div>
 
@@ -117,9 +145,16 @@
         <p>Uma limitação honesta: no Brasil quase toda votação divide o plenário na mesma linha. Por isso o <strong>espectro geral é a medida mais confiável</strong>, e os eixos temáticos usam só as votações que dividem mais naquele tema do que na média — são menos votações, e onde não sobrou votação suficiente o eixo vem de frentes e autorias. Cada perfil mostra sua % de confiança, e a afinidade é puxada para 50% quando há pouco dado.</p>
       </div>
       <div>
+        <h3>A cédula de 2026</h3>
+        <p>Os candidatos vêm do registro oficial de candidatura no TSE: <strong>20.911 pedidos</strong> para presidente, governador, senador, deputado federal e deputado estadual/distrital.</p>
+        <p>A diferença que mais importa: <strong>a maioria dos candidatos nunca teve mandato federal</strong>. Deles não existe voto, presença, projeto nem cota parlamentar — não existe nada para avaliar. Este site não inventa nota nesse caso: mostra "sem nota", separa esses candidatos num bloco à parte e exibe só o que a Justiça Eleitoral informa (situação do registro, patrimônio declarado, ocupação, escolaridade, quantas vezes já concorreu).</p>
+        <p>Quem <em>já é</em> deputado federal ou senador é reconhecido e leva junto todo o histórico do mandato. O vínculo é feito por nome, com regra conservadora: nome de urna só vale dentro do mesmo estado, para o senador do Tocantins não virar o xará candidato no Acre. Na dúvida, o site prefere não mostrar histórico a mostrar o histórico da pessoa errada.</p>
+        <p><strong>O que ainda não temos:</strong> deputado estadual em exercício não é avaliado pelo trabalho, porque cada uma das 27 assembleias publica seus dados de um jeito diferente e não há uma fonte nacional. Aqui eles aparecem apenas com a ficha do TSE.</p>
+      </div>
+      <div>
         <h3>Qualificação</h3>
         <ul>
-          <li><strong>Presença</strong>: sessões deliberativas do plenário em que houve registro de presença.</li>
+          <li><strong>Presença</strong>: sessões deliberativas do plenário em que houve registro de presença. Quem assumiu ou voltou no meio do período (suplente que tomou posse, ministro que deixou o cargo para disputar a eleição) é avaliado só a partir da sua chegada — cobrar sessões anteriores seria falso.</li>
           <li><strong>Votações</strong>: em quantas votações nominais registrou voto.</li>
           <li><strong>Projetos</strong>: propostas de autoria própria, com peso maior para as que viraram norma.</li>
           <li><strong>Uso da cota</strong>: percentil do gasto mensal da cota parlamentar frente aos colegas. Gastar pouco não é virtude automática — é um sinal para você olhar.</li>
@@ -127,7 +162,8 @@
       </div>
       <div>
         <h3>Integridade — leia com atenção</h3>
-        <p>Só entra na nota o que é <strong>registro oficial de punição</strong>: inabilitação pelo TCU por contas irregulares e sanções CEIS/CNEP da CGU.</p>
+        <p>Só entra na nota o que é <strong>registro oficial de punição</strong>: inabilitação pelo TCU por contas irregulares, sanções CEIS/CNEP da CGU e o que a Justiça Eleitoral registra sobre a candidatura — registro indeferido, candidatura inapta, menção à Lei da Ficha Limpa, abuso de poder ou compra de voto no indeferimento, e processos de cassação.</p>
+        <p>Atenção à diferença: <strong>registro indeferido não é condenação criminal</strong>, e muitos indeferimentos são revertidos em recurso. É um sinal para você conferir na fonte, não um veredito.</p>
         <p><strong>Menção em notícia não é condenação</strong> e por isso <em>não</em> altera nenhuma nota: aparece apenas como link, para você ler e julgar.</p>
         <p>O cruzamento é feito por nome, então pode haver homônimo. Todo achado vem com aviso e link para a fonte. Confira antes de concluir qualquer coisa.</p>
       </div>

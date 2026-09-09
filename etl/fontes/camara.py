@@ -214,11 +214,19 @@ def votos(deps: dict, anos: list[int]) -> dict:
 
     total_plen = len(plen_com_voto)
     log(f"   votacoes nominais de plenario (denominador): {total_plen}")
+    # mesma regra da presenca: quem chegou depois so responde pelo que veio depois
+    datas_votacao = sorted((cat[i]["data"] or "")[:10] for i in plen_com_voto if i in cat)
+    inicio_votos = datas_votacao[0] if datas_votacao else ""
     for i, d in deps.items():
         vistas = len(registrados[i])
+        denominador = total_plen
+        if registrados[i] and inicio_votos:
+            primeira = min((cat[v]["data"] or "")[:10] for v in registrados[i] if v in cat)
+            if primeira and _dias(inicio_votos, primeira) > 45:
+                denominador = sum(1 for x in datas_votacao if x >= primeira)
         d["_votos_plenario"] = vistas
-        d["_votos_plenario_total"] = total_plen
-        d["_participacao_pct"] = round(100 * vistas / total_plen, 1) if total_plen else None
+        d["_votos_plenario_total"] = denominador
+        d["_participacao_pct"] = round(100 * vistas / denominador, 1) if denominador else None
         vet, base = {}, 0
         for eixo, soma in eixos_dep[i].items():
             p = peso_dep[i][eixo]
@@ -239,6 +247,7 @@ def presenca(deps: dict, anos: list[int]) -> None:
 
     presentes = defaultdict(set)
     sessoes_validas: set[str] = set()
+    data_da_sessao: dict[str, str] = {}
 
     for ano in anos:
         eventos = tentar(lambda a=ano: list(ler_csv_url(f"{ARQ}/eventos/csv/eventos-{a}.csv")),
@@ -246,9 +255,13 @@ def presenca(deps: dict, anos: list[int]) -> None:
         # "Sessao Deliberativa" = plenario (o que conta como falta).
         # "Reuniao Deliberativa" = comissao, e cada deputado so integra algumas,
         # por isso nao pode entrar no denominador.
-        validos = {str(e.get("id")) for e in eventos
-                   if (e.get("descricaoTipo") or "").strip().lower().startswith("sessão delibera")
-                   or (e.get("descricaoTipo") or "").strip().lower().startswith("sessao delibera")}
+        validos = set()
+        for e in eventos:
+            tipo = (e.get("descricaoTipo") or "").strip().lower()
+            if tipo.startswith("sessão delibera") or tipo.startswith("sessao delibera"):
+                i = str(e.get("id"))
+                validos.add(i)
+                data_da_sessao[i] = (e.get("dataHoraInicio") or "")[:10]
         sessoes_validas |= validos
 
         linhas = tentar(
@@ -261,12 +274,43 @@ def presenca(deps: dict, anos: list[int]) -> None:
                 presentes[dep].add(ev)
 
     total = len(sessoes_validas)
+    # Ministro licenciado, suplente que assumiu no meio e quem tomou posse
+    # depois nao podem ser cobrados por sessoes anteriores a sua chegada. Nao
+    # existe campo de "data de posse" nos arquivos, mas da para derivar: a
+    # janela comeca na primeira sessao em que a pessoa aparece. O fim e sempre
+    # HOJE - assim quem simplesmente falta muito nao ganha desconto nenhum,
+    # so quem chegou (ou voltou) depois.
+    ordenadas = sorted(sessoes_validas, key=lambda i: data_da_sessao.get(i, ""))
+    datas = [data_da_sessao.get(i, "") for i in ordenadas]
+    inicio_periodo = datas[0] if datas else ""
+
+    tardios = 0
     for i, d in deps.items():
-        p = len(presentes[i])
+        presentes_dep = presentes[i]
+        p = len(presentes_dep)
+        denominador, desde = total, None
+        if presentes_dep:
+            primeira = min(data_da_sessao.get(e, "") for e in presentes_dep)
+            # 45 dias de folga: ausencia curta no inicio ainda e falta
+            if primeira and inicio_periodo and _dias(inicio_periodo, primeira) > 45:
+                desde = primeira
+                denominador = sum(1 for x in datas if x >= primeira)
+                tardios += 1
         d["_sessoes_presente"] = p
-        d["_sessoes_total"] = total
-        d["_presenca_pct"] = round(100 * p / total, 1) if total else None
-    log(f"   sessoes deliberativas no periodo: {total}")
+        d["_sessoes_total"] = denominador
+        d["_presenca_desde"] = desde
+        d["_presenca_pct"] = round(100 * p / denominador, 1) if denominador else None
+    log(f"   sessoes deliberativas no periodo: {total}"
+        f"   ({tardios} avaliados a partir da posse/retorno)")
+
+
+def _dias(a: str, b: str) -> int:
+    """Distancia em dias entre duas datas ISO (aceita string vazia)."""
+    import datetime as _dt
+    try:
+        return (_dt.date.fromisoformat(b) - _dt.date.fromisoformat(a)).days
+    except ValueError:
+        return 0
 
 
 def autorias(deps: dict, anos: list[int]) -> None:

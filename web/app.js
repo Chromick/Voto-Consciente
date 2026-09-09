@@ -1,4 +1,4 @@
-/* Voto Consciente - toda a interacao roda no navegador, lendo JSON estatico. */
+﻿/* Voto Consciente - toda a interacao roda no navegador, lendo JSON estatico. */
 
 const ESTADO = {
   lexico: null,
@@ -254,6 +254,332 @@ function renderizar() {
 }
 
 /* ------------------------------------------------------------------ *
+ * Cedula de 2026: todos os cargos que o eleitor escolhe na urna
+ *
+ * Aqui a populacao e diferente do ranking de mandato: a maioria dos
+ * candidatos NUNCA teve mandato federal, entao nao existe voto, presenca nem
+ * cota para avaliar. Em vez de fingir uma nota, mostramos o que existe e
+ * dizemos em que ela se baseia.
+ * ------------------------------------------------------------------ */
+const CACHE_CEDULA = new Map();
+
+async function carregarCedula(uf, cargo) {
+  const chave = `${uf}-${cargo}`;
+  if (CACHE_CEDULA.has(chave)) return CACHE_CEDULA.get(chave);
+  let dado = { candidatos: [] };
+  try {
+    const r = await fetch(`dados/cedula/${chave}.json`);
+    if (r.ok) {
+      dado = await r.json();
+      // o cargo fica no cabecalho do arquivo; o card precisa dele no item
+      for (const c of dado.candidatos) { c.cargo = dado.cargo; c.uf = dado.uf; }
+    }
+  } catch (e) { /* cargo inexistente naquela UF (ex.: distrital fora do DF) */ }
+  CACHE_CEDULA.set(chave, dado);
+  return dado;
+}
+
+/* Quanto do candidato conseguimos de fato verificar. Vira selo no card:
+   o eleitor precisa saber se a nota vem de registro publico de atuacao ou
+   apenas da ficha de candidatura. */
+function baseDeAvaliacao(c) {
+  if (c.mandato) return { nivel: "completo", texto: "mandato atual verificado" };
+  const anteriores = (c.anteriores_anos || []).length;
+  if (anteriores > 1) {
+    return { nivel: "parcial", texto: `${anteriores} candidaturas anteriores` };
+  }
+  return { nivel: "minimo", texto: "sem histórico parlamentar federal" };
+}
+
+/* A foto do TSE tem endereco previsivel; o JSON guarda so um booleano. */
+function fotoCandidato(c) {
+  if (c.foto) return c.foto;              // veio do mandato (Camara/Senado)
+  if (!c.tem_foto) return "";
+  const el = (ESTADO.cedula || {}).id_eleicao || "20322002026";
+  return `https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/${el}/${c.id}/${c.uf}`;
+}
+
+/* So existe "nota geral" para quem tem atuacao registrada para avaliar.
+   Quem nunca teve mandato federal nao tem presenca, voto, projeto nem cota:
+   o unico numero disponivel seria a situacao do registro, e ai TODO candidato
+   com registro deferido apareceria com 100 - um desconhecido empatado com um
+   parlamentar de otima folha. Nesse caso devolvemos null e a interface diz,
+   com todas as letras, que nao ha o que avaliar. */
+function notaCandidato(c, af) {
+  if (!c.mandato) return null;
+  const partes = [];
+  const add = (chave, valor) => {
+    const w = ESTADO.pesos[chave];
+    if (w > 0 && valor != null) partes.push([valor, w]);
+  };
+  add("afinidade", af ? af.valor : null);
+  const n = c.notas || {};
+  add("presenca", n.presenca);
+  add("participacao", n.participacao);
+  add("producao", n.producao);
+  add("economia", n.economia);
+  // integridade: junta a sancao administrativa com a situacao do registro
+  const integridade = n.integridade == null
+    ? c.nota_registro
+    : Math.min(n.integridade, c.nota_registro);
+  add("integridade", integridade);
+  if (!partes.length) return null;
+  const soma = partes.reduce((s, [v, w]) => s + v * w, 0);
+  const peso = partes.reduce((s, [, w]) => s + w, 0);
+  return soma / peso;
+}
+
+/* Sem mandato nao ha voto para medir ideologia; sobra a media do partido.
+   E um sinal fraco de proposito - por isso entra com confianca baixa, o que
+   puxa a afinidade para perto de 50%. */
+function afinidadeCandidato(c) {
+  if (!ESTADO.perfil) return null;
+  if (c.eixos && Object.keys(c.eixos).length) return afinidade(ESTADO.perfil, c);
+  const doPartido = (ESTADO.dados.partidos || {})[c.partido];
+  if (!doPartido) return null;
+  const af = afinidade(ESTADO.perfil, { eixos: doPartido, confianca_eixos: 0.3 });
+  if (af) af.viaPartido = true;
+  return af;
+}
+
+/* Devolve dois grupos, deliberadamente separados: quem da para avaliar pelo
+   que fez, e quem so tem ficha de candidatura. Misturar os dois numa lista
+   unica daria a impressao de que sao comparaveis - e nao sao. */
+function rankearCedula(lista) {
+  const soHistorico = $("#c-so-historico").checked;
+  const soAptos = $("#c-so-aptos").checked;
+  const busca = semAcento($("#c-busca").value.toLowerCase().trim());
+  const filtrados = lista.filter((c) => {
+    if (soHistorico && !c.mandato) return false;
+    if (soAptos && (c.alertas_tse || []).some((a) => a.tipo === "registro" || a.tipo === "inapto")) return false;
+    if (busca) {
+      const alvo = semAcento(`${c.urna || ""} ${c.nome || ""}`.toLowerCase());
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  }).map((c) => {
+    const af = afinidadeCandidato(c);
+    return { c, af, geral: notaCandidato(c, af) };
+  });
+
+  const avaliaveis = filtrados.filter((x) => x.geral != null)
+    .sort((a, b) => b.geral - a.geral);
+  // sem nota: ordena pela afinidade estimada do partido e, sem perfil, por nome
+  const demais = filtrados.filter((x) => x.geral == null)
+    .sort((a, b) => (b.af ? b.af.valor : -1) - (a.af ? a.af.valor : -1)
+      || (a.c.urna || "").localeCompare(b.c.urna || ""));
+  return { avaliaveis, demais };
+}
+
+function cardCandidato(item, posicao) {
+  const { c, af, geral } = item;
+  const base = baseDeAvaliacao(c);
+  const card = criar("div", `card${posicao <= 3 ? " ouro" : ""} base-${base.nivel}`);
+  card.appendChild(criar("div", "pos", String(posicao)));
+
+  const cabeca = criar("div", "cabeca");
+  const img = criar("img");
+  img.src = fotoCandidato(c);
+  img.alt = c.urna || "";
+  img.loading = "lazy";
+  img.onerror = () => { img.style.visibility = "hidden"; };
+  cabeca.appendChild(img);
+  cabeca.appendChild(criar("div", null,
+    `<div class="nome">${c.urna || c.nome}</div>
+     <div class="meta">${c.numero ?? "—"} · ${c.partido || "sem partido"} · ${c.uf}</div>`));
+  card.appendChild(cabeca);
+
+  if (geral != null) {
+    card.appendChild(criar("div", "selo-geral", `${Math.round(geral)}<small>NOTA GERAL</small>`));
+  } else {
+    const s = criar("div", "selo-geral sem-nota", `—<small>SEM NOTA</small>`);
+    s.title = "Não há mandato federal para avaliar: sem votos, presença, projetos ou cota.";
+    card.appendChild(s);
+  }
+  if (af) {
+    const selo = criar("div", "selo-afinidade", `${af.valor}% combina com você`);
+    selo.title = af.viaPartido
+      ? "Estimado pela média do partido — não há votos deste candidato para medir."
+      : `Proximidade bruta ${af.bruto}% em ${af.eixosUsados} eixos.`;
+    if (af.viaPartido) selo.classList.add("fraco");
+    card.appendChild(selo);
+  }
+
+  if (c.mandato) {
+    const n = c.notas || {};
+    const notas = criar("div", "notas-mini");
+    for (const [rotulo, valor] of [["Presença", n.presenca], ["Votações", n.participacao],
+                                   ["Projetos", n.producao], ["Uso da cota", n.economia]]) {
+      const l = criar("div", "nota-mini");
+      l.appendChild(criar("span", null, rotulo));
+      const barra = criar("div", "barra");
+      barra.appendChild(criar("span", null, "")).style.width = `${valor == null ? 0 : valor}%`;
+      l.appendChild(barra);
+      l.appendChild(criar("b", null, valor == null ? "—" : Math.round(valor)));
+      notas.appendChild(l);
+    }
+    card.appendChild(notas);
+  } else {
+    const ficha = criar("div", "ficha-tse");
+    const linhas = [];
+    if (c.ocupacao) linhas.push(["Ocupação", c.ocupacao]);
+    if (c.instrucao) linhas.push(["Escolaridade", c.instrucao]);
+    if (c.bens != null) linhas.push(["Patrimônio declarado", dinheiro(c.bens)]);
+    if ((c.anteriores_anos || []).length) linhas.push(["Já concorreu", `${c.anteriores_anos.length}x`]);
+    ficha.innerHTML = linhas.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("");
+    card.appendChild(ficha);
+  }
+
+  const badges = criar("div", "badges");
+  badges.appendChild(criar("span", `badge ${base.nivel === "completo" ? "ok" : "info"}`, base.texto));
+  for (const a of (c.alertas_tse || [])) {
+    badges.appendChild(criar("span", "badge grave", a.texto));
+  }
+  if (!(c.alertas_tse || []).length && c.situacao) {
+    badges.appendChild(criar("span", "badge ok", `registro ${c.situacao.toLowerCase()}`));
+  }
+  if (c.reeleicao) badges.appendChild(criar("span", "badge", "tenta reeleição"));
+  card.appendChild(badges);
+
+  card.onclick = () => (c.mandato ? abrirDetalhe(c.mandato.id) : abrirCandidato(c));
+  return card;
+}
+
+function abrirCandidato(c) {
+  const el = $("#modal-conteudo");
+  // o TSE so devolve o ANO das candidaturas anteriores de forma confiavel
+  const anos = c.anteriores_anos || [];
+  const alertas = (c.alertas_tse || []).map((a) => `<li>${a.texto}</li>`).join("");
+  el.innerHTML = `
+    <div class="detalhe-topo">
+      ${fotoCandidato(c) ? `<img src="${fotoCandidato(c)}" alt="">` : ""}
+      <div>
+        <h2>${c.urna || c.nome}</h2>
+        <p class="meta">${ESTADO.cedula.cargos[c.cargo] || ""} · ${c.uf} · ${c.partido || "sem partido"} · nº ${c.numero ?? "—"}</p>
+        <p class="meta">Nome completo: ${c.nome || "—"}</p>
+        ${c.coligacao_composicao ? `<p class="meta">Coligação: ${c.coligacao_composicao}</p>` : ""}
+      </div>
+    </div>
+    <div class="cartoes">
+      <div class="cartao"><span>SITUAÇÃO DO REGISTRO</span><strong>${c.situacao || "—"}</strong>
+        <small>${c.apto ? "candidatura apta" : "verifique a situação"}</small></div>
+      <div class="cartao"><span>PATRIMÔNIO DECLARADO</span><strong>${dinheiro(c.bens)}</strong>
+        <small>declarado ao TSE em 2026</small></div>
+      <div class="cartao"><span>OCUPAÇÃO</span><strong>${c.ocupacao || "—"}</strong>
+        <small>${c.instrucao || ""}</small></div>
+    </div>
+    <p class="aviso-modal">Este candidato não tem mandato federal em exercício, então
+      não há votos, presença nem cota parlamentar para avaliar. O que aparece aqui é o
+      que consta no registro de candidatura do TSE.</p>
+    ${alertas ? `<h3>Pontos de atenção no registro</h3><ul class="lista-alertas">${alertas}</ul>` : ""}
+    ${anos.length ? `<h3>Já concorreu antes</h3>
+      <p class="meta">Pediu registro em ${anos.join(", ")}. O resultado de cada
+      uma está na página do TSE, no link abaixo.</p>` : ""}
+    ${c.sites && c.sites.length ? `<h3>Links declarados</h3><ul class="lista-alertas">${
+      c.sites.map((s) => `<li><a href="${s}" target="_blank" rel="noopener">${s}</a></li>`).join("")}</ul>` : ""}
+    <p class="fonte-link"><a href="https://divulgacandcontas.tse.jus.br/divulga/#/candidato/2026/20322002026/${c.uf}/${c.id}"
+       target="_blank" rel="noopener">Ver a candidatura completa no TSE →</a></p>`;
+  $("#modal").classList.remove("oculto");
+}
+
+let LIMITE_CEDULA = 12;
+
+/* Presidente e nacional: o arquivo fica em BR, nao na UF do eleitor. */
+function ufDoCargo(cargo) {
+  const c = (ESTADO.cedula || {}).contagem || {};
+  return c[`BR-${cargo}`] ? "BR" : $("#c-uf").value;
+}
+
+async function renderizarCedula() {
+  const cargo = ESTADO.cargoAtivo;
+  const uf = ufDoCargo(cargo);
+  if (!uf || !cargo) return;
+  const alvo = $("#lista-cedula");
+  alvo.innerHTML = "<p class='carregando'>Carregando candidatos...</p>";
+  const dado = await carregarCedula(uf, cargo);
+  const { avaliaveis, demais } = rankearCedula(dado.candidatos || []);
+  alvo.innerHTML = "";
+
+  // Com os dois grupos na tela, "#1" seria lido como "o melhor de todos".
+  // O titulo diz de que lista aquele primeiro lugar e.
+  if (avaliaveis.length && demais.length) {
+    const cabeca = criar("div", "divisor-grupo forte");
+    cabeca.innerHTML = `<h3>Dá para avaliar pelo que já fez (${avaliaveis.length})</h3>
+      <p>Exercem mandato federal hoje, então há voto, presença, projetos e uso da
+      cota para conferir. A ordem abaixo usa esses números e o seu perfil.</p>`;
+    alvo.appendChild(cabeca);
+  }
+  avaliaveis.forEach((item, i) => alvo.appendChild(cardCandidato(item, i + 1)));
+
+  if (demais.length) {
+    const aviso = criar("div", "divisor-grupo");
+    aviso.innerHTML = `<h3>Sem histórico federal para avaliar (${demais.length})</h3>
+      <p>Estes candidatos não têm voto, presença nem cota parlamentar registrados —
+      não é possível dar nota ao trabalho deles. Aparece o que a Justiça Eleitoral
+      informa: situação do registro, patrimônio declarado e candidaturas anteriores.
+      ${ESTADO.perfil ? "A afinidade mostrada é estimada pela média do partido." : ""}</p>`;
+    alvo.appendChild(aviso);
+    demais.slice(0, LIMITE_CEDULA).forEach((item, i) =>
+      alvo.appendChild(cardCandidato(item, i + 1)));
+  }
+
+  if (!avaliaveis.length && !demais.length) {
+    alvo.appendChild(criar("p", "carregando", "Nenhum candidato com esses filtros."));
+  }
+  $("#c-mais").classList.toggle("oculto", demais.length <= LIMITE_CEDULA);
+  $("#cedula-contagem").textContent =
+    `${avaliaveis.length + demais.length} candidatos · ${avaliaveis.length} com mandato para conferir`;
+}
+
+function montarCedula() {
+  const indice = ESTADO.cedula;
+  if (!indice) return;
+  const seletor = $("#c-uf");
+  const ufs = [...new Set(Object.keys(indice.contagem).map((k) => k.split("-")[0]))]
+    .filter((u) => u !== "BR").sort();
+  seletor.innerHTML = ufs.map((u) => `<option value="${u}">${u}</option>`).join("");
+  seletor.value = localStorage.getItem("uf") || "SP";
+
+  const abas = $("#abas-cargo");
+  const desenharAbas = () => {
+    const uf = seletor.value;
+    abas.innerHTML = "";
+    const disponiveis = Object.entries(indice.cargos)
+      .filter(([cod]) => indice.contagem[`${uf}-${cod}`] || indice.contagem[`BR-${cod}`]);
+    for (const [cod, nome] of disponiveis) {
+      const b = criar("button", `aba${ESTADO.cargoAtivo === cod ? " ativa" : ""}`, nome);
+      b.onclick = () => {
+        ESTADO.cargoAtivo = cod;
+        LIMITE_CEDULA = 12;
+        desenharAbas();
+        renderizarCedula();
+      };
+      abas.appendChild(b);
+    }
+    if (!disponiveis.some(([cod]) => cod === ESTADO.cargoAtivo)) {
+      ESTADO.cargoAtivo = disponiveis.length ? disponiveis[0][0] : null;
+      desenharAbas();
+    }
+  };
+
+  seletor.onchange = () => {
+    localStorage.setItem("uf", seletor.value);
+    LIMITE_CEDULA = 12;
+    desenharAbas();
+    renderizarCedula();
+  };
+  for (const id of ["#c-so-historico", "#c-so-aptos"]) {
+    $(id).onchange = () => { LIMITE_CEDULA = 12; renderizarCedula(); };
+  }
+  $("#c-busca").oninput = () => { LIMITE_CEDULA = 12; renderizarCedula(); };
+  $("#c-mais").onclick = () => { LIMITE_CEDULA += 24; renderizarCedula(); };
+
+  ESTADO.cargoAtivo = "6";
+  desenharAbas();
+  renderizarCedula();
+}
+
+/* ------------------------------------------------------------------ *
  * Eixos visuais
  * ------------------------------------------------------------------ */
 function linhaEixo(eixo, valorCandidato, valorUsuario) {
@@ -458,6 +784,7 @@ function montarPesos() {
       ESTADO.pesos[chave] = +input.value;
       saida.textContent = input.value;
       renderizar();
+      if (ESTADO.cedula) renderizarCedula();
     };
     linha.appendChild(input);
     linha.appendChild(saida);
@@ -494,7 +821,8 @@ function aplicarTexto() {
   ESTADO.termos = achados;
   mostrarPerfil();
   renderizar();
-  $("#ranking").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (ESTADO.cedula) renderizarCedula();
+  $("#cedula").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function iniciar() {
@@ -509,6 +837,9 @@ async function iniciar() {
     ESTADO.sinalGeral = lexico.sinal_geral;
     ESTADO.dados = dados;
     ESTADO.meta = meta;
+    // a cedula e opcional: sem ela o site ainda funciona como ranking de mandato
+    ESTADO.cedula = await fetch("dados/cedula/indice.json")
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
   } catch (e) {
     $("#top10").innerHTML =
       `<p class="carregando">Não achei os dados. Rode <code>python -m etl.build</code> e recarregue.</p>`;
@@ -519,6 +850,8 @@ async function iniciar() {
   montarFiltros();
   montarFontes();
   renderizar();
+  if (ESTADO.cedula) montarCedula();
+  else $("#cedula").classList.add("oculto");
 
   $("#calcular").onclick = aplicarTexto;
   $("#texto").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) aplicarTexto(); };

@@ -1,6 +1,13 @@
 cache/
 etl_run.log
+tse_legis.log
+tse_legis.err
 __pycache__/
 *.pyc
 .venv/
 .DS_Store
+
+# Material bruto do TSE (~29 MB): e um passo intermediario, reproduzivel com
+# `python tools/coletar_tse.py`. O que o site serve e dados/cedula/, que fica
+# versionado - por isso rodar o projeto nao exige navegador nem Playwright.
+dados/tse/

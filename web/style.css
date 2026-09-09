@@ -254,3 +254,50 @@ footer { border-top: 1px solid var(--borda); padding: 24px 20px; text-align: cen
   th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6),
   th:nth-child(7), td:nth-child(7), th:nth-child(8), td:nth-child(8) { display: none; }
 }
+
+/* ---------- Cédula de 2026 ---------- */
+.escolha-uf {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  margin: 18px 0; padding: 14px 16px;
+  background: var(--painel2); border: 1px solid var(--borda); border-radius: 12px;
+}
+.escolha-uf label[for="c-uf"] { font-weight: 600; color: var(--claro); }
+.escolha-uf select { min-width: 90px; }
+.escolha-uf input[type="search"] { margin-left: auto; min-width: 200px; }
+
+.abas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.aba {
+  padding: 9px 16px; border-radius: 999px; cursor: pointer;
+  background: var(--painel2); color: var(--suave);
+  border: 1px solid var(--borda); font-size: 14px; font-weight: 600;
+}
+.aba:hover { color: var(--claro); border-color: var(--acento); }
+.aba.ativa { background: var(--acento); color: #06231a; border-color: var(--acento); }
+
+.ficha-tse { margin-top: 12px; display: grid; gap: 7px; }
+.ficha-tse > div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.ficha-tse span { color: var(--suave); }
+.ficha-tse b { color: var(--claro); text-align: right; }
+
+.card.base-minimo { border-left: 3px solid var(--borda); }
+.card.base-parcial { border-left: 3px solid #d8a34a; }
+.card.base-completo { border-left: 3px solid var(--acento); }
+.selo-afinidade.fraco { opacity: .72; border-style: dashed; }
+
+.aviso-modal {
+  margin: 16px 0; padding: 12px 14px; font-size: 14px; line-height: 1.55;
+  background: rgba(216,163,74,.08); border: 1px solid rgba(216,163,74,.3);
+  border-radius: 10px; color: var(--claro);
+}
+#c-mais { display: block; margin: 22px auto 0; }
+.oculto { display: none !important; }
+
+.selo-geral.sem-nota { color: var(--suave); opacity: .5; }
+.divisor-grupo {
+  grid-column: 1 / -1; margin: 26px 0 4px; padding: 16px 18px;
+  background: var(--painel2); border: 1px dashed var(--borda); border-radius: 12px;
+}
+.divisor-grupo h3 { margin: 0 0 6px; font-size: 16px; color: var(--claro); }
+.divisor-grupo p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--suave); }
+.divisor-grupo.forte { border-style: solid; border-color: rgba(46,204,113,.3); background: rgba(46,204,113,.05); }
+.divisor-grupo.forte h3 { color: var(--acento); }

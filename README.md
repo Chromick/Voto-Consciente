@@ -1,15 +1,23 @@
 # Voto Consciente
 
-Ranking de deputados e senadores brasileiros construído **só com dado público
-oficial**: como votaram, quanto gastaram de dinheiro público, quantas sessões
-faltaram, quantos projetos apresentaram e se têm sanção registrada.
+Sua **cédula da eleição de 2026** montada só com dado público oficial. Você
+escolhe o estado e vê, cargo por cargo, quem pediu registro — presidente,
+governador, senador, deputado federal e deputado estadual/distrital — ordenado
+por quanto cada um combina com o que você escreveu e por como trabalhou de fato:
+como votou, quanto gastou de dinheiro público, quantas sessões faltou, quantos
+projetos apresentou e o que a Justiça Eleitoral registra sobre a candidatura.
 
 Você escreve com suas palavras o que defende ("sou conservador e cristão", "sou
-socialista, defendo o SUS", "quero acima de tudo transparência") e o site mostra
-o Top 10 de quem **combina com você** e ao mesmo tempo **trabalha bem**.
+socialista, defendo o SUS", "quero acima de tudo transparência") e o site ordena
+os candidatos de cada cargo.
 
-Custo para rodar e publicar: **zero**. Nenhuma dependência para instalar, nenhum
-servidor para pagar, nenhuma chave de API obrigatória.
+**A regra mais importante do projeto:** a maior parte dos 20.911 candidatos
+nunca teve mandato federal, então não existe voto, presença nem cota para
+avaliar. Nesses casos o site escreve **"sem nota"**, separa essas pessoas num
+bloco à parte e mostra só o que o TSE informa. Ele nunca finge saber.
+
+Custo para rodar e publicar: **zero**. Nenhum servidor para pagar e nenhuma
+chave de API obrigatória.
 
 ---
 
@@ -34,6 +42,25 @@ python -m etl.build --noticias --limite-noticias 50  # busca menções na impren
 python -m etl.build --sem-cache               # ignora o cache e rebaixa tudo
 python tools/conferir.py                      # sanidade dos números gerados
 ```
+
+### Atualizar as candidaturas de 2026
+
+A cédula já vem versionada em `dados/cedula/`, então o comando acima funciona
+sem instalar nada. Para rebaixar do TSE você precisa de um navegador de
+verdade — o site do TSE devolve **403 para qualquer cliente que não seja
+navegador** (a checagem é pela impressão digital do TLS, não pelo User-Agent:
+nem `curl` com todos os cabeçalhos do Chrome passa):
+
+```bash
+python -m pip install playwright
+python -m playwright install chromium
+python tools/coletar_tse.py            # cédula inteira, ~20 min
+python tools/coletar_tse.py --cargos 1 3 5   # só presidente/governador/senador
+```
+
+Isso grava `dados/tse/` (bruto, fora do git) e o `etl.build` seguinte
+transforma em `dados/cedula/`. Detalhe que custou tempo: o headless **antigo**
+do Chromium é barrado pelo WAF; é preciso `channel="chromium"` (headless novo).
 
 ## Publicar de graça na internet
 
@@ -65,11 +92,25 @@ e salve em **Settings → Secrets → Actions** com o nome
 | [TCU — Inabilitados](https://contas.tcu.gov.br/ords/f?p=1660:3) | quem foi inabilitado por contas julgadas irregulares | não |
 | [CGU — CEIS/CNEP](https://portaldatransparencia.gov.br/sancoes) | sanções administrativas | sim (gratuita) |
 | [GDELT](https://www.gdeltproject.org/) | menções em notícias (apenas informativo) | não |
+| [TSE — Divulgação de Candidaturas](https://divulgacandcontas.tse.jus.br/divulga/) | as 20.911 candidaturas de 2026: situação do registro, Ficha Limpa, cassação, patrimônio, ocupação, escolaridade, coligação | não, mas exige navegador |
 
 Em vez de milhares de chamadas de API, o ETL usa os **arquivos completos** que a
 Câmara publica diariamente. São poucas dezenas de MB e trazem voto por voto.
 
 ## Como o ranking é calculado
+
+**Quem entra no ranking com nota.** Só candidatos com mandato federal em
+exercício, porque só deles existe registro de atuação. Os outros aparecem sem
+nota, num bloco separado, com a ficha do TSE. O vínculo candidato ↔ mandato é
+por nome, com regra conservadora: nome de urna só casa dentro do mesmo estado
+(sem isso, o senador Eduardo Gomes, do Tocantins, casava com xarás candidatos a
+deputado estadual no Acre e no Paraná); e se dois candidatos casam com o mesmo
+mandato, ninguém leva o histórico.
+
+**Presença e votações** são medidas a partir da chegada da pessoa, não do início
+do período. Sem isso, ministro que deixou o cargo para disputar a eleição
+aparecia com 8% de presença como se fosse faltoso — André Fufuca ia a 20%,
+quando o número correto sobre o período em que esteve na Câmara é 79%.
 
 **Qualificação** (cada item vira nota 0–100, comparando com os colegas da mesma casa):
 
@@ -100,9 +141,16 @@ sem que ninguém tenha rotulado partido nenhum — ver `python tools/conferir.py
   homônimo: todo achado vem com aviso e link para a fonte. Cada perfil mostra a
   confiança do posicionamento, e a afinidade encolhe quando há pouco dado.
 - **Não diz em quem votar.** Os pesos do ranking são seus, ajustáveis na tela.
-- **Não cobre candidatos estreantes.** Quem nunca teve mandato não tem votação,
-  presença nem cota para analisar. O foco é quem já exerce o cargo — que é
-  justamente quem se apresenta à reeleição.
+- **Não dá nota a quem não tem histórico.** Candidato estreante aparece na
+  cédula com a ficha do TSE e o rótulo "sem nota". Inventar um número ali seria
+  pior do que não ter número.
+- **Não avalia o trabalho de deputado estadual.** As 27 assembleias publicam
+  dados de formas diferentes e não existe fonte nacional. Eles aparecem na
+  cédula, mas só com o registro de candidatura.
+- **Não sabe o resultado de eleições anteriores.** O TSE devolve o cargo e o
+  resultado das candidaturas passadas com campos inconsistentes; por isso
+  guardamos apenas os anos em que a pessoa concorreu, e o resto fica no link
+  para a fonte.
 
 ## Estrutura
 
@@ -113,10 +161,15 @@ etl/
   temas.py       eixos, dicionário de termos e classificação de ementas
   notas.py       consolidação dos eixos e cálculo das notas
   util.py        rede com cache, leitura de CSV, download tolerante a falha
-  fontes/        um módulo por fonte: camara, cota, senado, integridade
+  fontes/        um módulo por fonte: camara, cota, senado, integridade, tse
 web/             site estático (HTML, CSS, JS puro)
-dados/           saída do ETL, versionada
-tools/conferir.py  checagem de sanidade dos dados
+dados/
+  ranking.json   quem está no cargo hoje
+  cedula/        candidaturas de 2026, um arquivo por UF e cargo (versionado)
+  p/             detalhe de cada parlamentar
+  tse/           bruto do TSE (fora do git; refaz com tools/coletar_tse.py)
+tools/coletar_tse.py  coleta as candidaturas (único passo que exige navegador)
+tools/conferir.py     checagem de sanidade dos dados
 ```
 
 Licença: MIT. Os dados são públicos e pertencem a quem paga por eles.
