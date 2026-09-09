@@ -32,7 +32,12 @@ jobs:
           python-version: "3.12"
 
       # O ETL nao tem dependencia externa: e stdlib puro.
+      # Se as APIs do governo estiverem fora do ar, a coleta falha mas o site
+      # continua publicando os dados ja versionados em dados/ - melhor um site
+      # com dado da semana passada do que site fora do ar. A etapa seguinte
+      # garante que o dado publicado e valido de qualquer forma.
       - name: Coletar dados publicos
+        continue-on-error: true
         env:
           # opcional: cadastre a chave gratuita e guarde em Settings > Secrets
           PORTAL_TRANSPARENCIA_KEY: ${{ secrets.PORTAL_TRANSPARENCIA_KEY }}
