@@ -46,8 +46,29 @@ def posicao_dos_partidos(pessoas: list[dict]) -> dict[str, dict]:
     return saida
 
 
+def _referencia_por_casa(pessoas: list[dict]) -> dict[str, dict]:
+    """Quanta evidencia EXISTE em cada casa legislativa.
+
+    O Senado faz muito menos votacao nominal que a Camara e nao publica frentes
+    parlamentares. Se a confianca fosse medida na mesma regua, todo senador
+    ficaria com confianca baixa e - por causa do encolhimento da afinidade -
+    seria injustamente rebaixado no ranking. A regua e por casa: mede o quanto
+    temos DAQUELA pessoa em relacao ao maximo disponivel entre os colegas dela.
+    """
+    ref: dict[str, dict] = {}
+    for casa in {p["casa"] for p in pessoas}:
+        grupo = [p for p in pessoas if p["casa"] == casa]
+        ref[casa] = {
+            "max_votos": max((max((p.get("_espectro_n") or {}).values(), default=0)
+                              for p in grupo), default=0),
+            "tem_frentes": any(p.get("_n_frentes_uteis") for p in grupo),
+        }
+    return ref
+
+
 def consolidar_eixos(pessoas: list[dict]) -> dict[str, dict]:
     partidos = posicao_dos_partidos(pessoas)
+    referencia = _referencia_por_casa(pessoas)
     for p in pessoas:
         espectro = p.get("_eixos_espectro") or {}
         votos_tema = p.get("_eixos_votos") or {}
@@ -84,11 +105,17 @@ def consolidar_eixos(pessoas: list[dict]) -> dict[str, dict]:
                 final[eixo] = round(max(-1.0, min(1.0, m)), 3)
 
         p["eixos"] = final
-        # Confianca: quantas votacoes discriminantes a pessoa participou, mais
-        # a existencia de sinal proprio (frentes/autorias).
+        # Confianca: quanto da evidencia disponivel na casa temos desta pessoa.
         n_esp = max((p.get("_espectro_n") or {}).values(), default=0)
         n_frentes = p.get("_n_frentes_uteis", 0)
-        confianca = min(1.0, n_esp / 40) * 0.7 + min(n_frentes, 4) / 4 * 0.3
+        ref = referencia[p["casa"]]
+        # 60% do maximo da casa ja e considerado historico completo
+        base = ref["max_votos"] * 0.6
+        parte_votos = min(1.0, n_esp / base) if base else 0.0
+        if ref["tem_frentes"]:
+            confianca = parte_votos * 0.7 + min(n_frentes, 4) / 4 * 0.3
+        else:
+            confianca = parte_votos
         p["confianca_eixos"] = round(min(1.0, confianca), 2)
         p["_espectro_votos"] = n_esp
     return partidos
