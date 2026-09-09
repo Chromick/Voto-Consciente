@@ -1,0 +1,45 @@
+{
+ "gerado_em": "2026-09-09T19:42:42",
+ "anos": [
+  2025,
+  2026
+ ],
+ "casas": [
+  "camara",
+  "senado"
+ ],
+ "total_parlamentares": 594,
+ "com_noticias": false,
+ "fontes": [
+  {
+   "nome": "Camara dos Deputados - Dados Abertos",
+   "url": "https://dadosabertos.camara.leg.br/",
+   "usado": "deputados, votos nominais, presenca em sessoes, autoria de proposicoes, frentes"
+  },
+  {
+   "nome": "Camara dos Deputados - Cota Parlamentar (CEAP)",
+   "url": "https://www.camara.leg.br/transparencia/gastos-parlamentares",
+   "usado": "cada despesa reembolsada com dinheiro publico"
+  },
+  {
+   "nome": "Senado Federal - Dados Abertos",
+   "url": "https://legis.senado.leg.br/dadosabertos/",
+   "usado": "senadores, votacoes nominais, licencas, autorias"
+  },
+  {
+   "nome": "TCU - Inabilitados",
+   "url": "https://contas.tcu.gov.br/ords/f?p=1660:3",
+   "usado": "sancao oficial por contas julgadas irregulares"
+  },
+  {
+   "nome": "CGU - CEIS/CNEP (Portal da Transparencia)",
+   "url": "https://portaldatransparencia.gov.br/sancoes",
+   "usado": "sancoes administrativas (opcional, exige chave gratuita)"
+  },
+  {
+   "nome": "GDELT Project",
+   "url": "https://www.gdeltproject.org/",
+   "usado": "mencoes em noticias (apenas informativo, nunca entra na nota)"
+  }
+ ]
+}

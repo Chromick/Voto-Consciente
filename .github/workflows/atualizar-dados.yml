@@ -1,0 +1,73 @@
+name: Atualizar dados e publicar site
+
+# Roda de graca no plano gratuito do GitHub:
+#  - Actions: 2.000 minutos/mes em repositorio publico (aqui gasta ~10 min/semana)
+#  - Pages: hospedagem estatica gratuita
+on:
+  schedule:
+    - cron: "0 7 * * 1"        # toda segunda, 04h no horario de Brasilia
+  workflow_dispatch:            # e no botao "Run workflow"
+  push:
+    branches: [main]
+    paths: ["web/**", "etl/**", ".github/workflows/**"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  coletar-e-publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # O ETL nao tem dependencia externa: e stdlib puro.
+      - name: Coletar dados publicos
+        env:
+          # opcional: cadastre a chave gratuita e guarde em Settings > Secrets
+          PORTAL_TRANSPARENCIA_KEY: ${{ secrets.PORTAL_TRANSPARENCIA_KEY }}
+        run: |
+          ANO=$(date +%Y)
+          python -m etl.build --anos $((ANO-1)) $ANO
+
+      - name: Conferir se gerou dado valido
+        run: |
+          python - <<'PY'
+          import json, sys
+          d = json.load(open("dados/ranking.json", encoding="utf-8"))
+          n = len(d["parlamentares"])
+          print("parlamentares:", n)
+          if n < 400:
+              sys.exit(f"coleta suspeita: apenas {n} parlamentares")
+          PY
+
+      - name: Guardar os dados no repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dados
+          git diff --staged --quiet || git commit -m "dados: atualizacao automatica"
+          git push
+
+      - name: Montar o site (web/ + dados/)
+        run: |
+          mkdir -p site
+          cp -r web/* site/
+          cp -r dados site/dados
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
