@@ -15,7 +15,6 @@ const ESTADO = {
   escolhendoSlot: null,
   hallAtual: [],
   chapas: null,
-  sugeridos: {},
 };
 
 const ROTULO_PESO = {
@@ -588,8 +587,8 @@ function montarSlot(def, item, extras, nomeado) {
   const corpo = criar("div");
   corpo.appendChild(criar("p", "cargo-slot", tituloSlot(def)));
   if (!item) {
-    corpo.appendChild(criar("h3", null, "Ninguém nomeado"));
-    corpo.appendChild(criar("p", "porque", "Ainda não há digno neste cargo."));
+    corpo.appendChild(criar("h3", null, "Aguardando o seu digno"));
+    corpo.appendChild(criar("p", "porque", "Ninguém é sugerido. Você escolhe."));
     const vazio = criar("button", "botao-slot ouro", "Escolher digno");
     vazio.onclick = (e) => { e.stopPropagation(); comecarEscolha(def); };
     corpo.appendChild(vazio);
@@ -679,34 +678,6 @@ async function renderizarUrna() {
     gov.candidatos || [], pres.candidatos || [],
   ]);
 
-  const senado = filaUrna(sen.candidatos || []);
-  const sugeridos = {};
-  const extrasSug = {};
-
-  for (const def of SLOTS_URNA) {
-    if (def.senadoSlot != null) {
-      const item = senado[def.senadoSlot] || null;
-      sugeridos[def.id] = item;
-      extrasSug[def.id] = item ? {
-        sup1: parDaChapa(item.c, ESTADO.chapas.sup1),
-        sup2: parDaChapa(item.c, ESTADO.chapas.sup2),
-        alts: senado.filter((x, i) => i !== def.senadoSlot && i < 4).slice(0, 2),
-      } : { alts: [] };
-      continue;
-    }
-    const cargo = def.cargo === "estadual" ? depEst : def.cargo;
-    const bloco = cargo === 6 ? fed : cargo === depEst ? est : cargo === 3 ? gov : pres;
-    const fila = filaUrna(bloco.candidatos || []);
-    const item = fila[0] || null;
-    sugeridos[def.id] = item;
-    const viceLista = def.vice === 4 ? ESTADO.chapas.viceGov : def.vice === 2 ? ESTADO.chapas.vicePres : [];
-    extrasSug[def.id] = {
-      vice: item ? parDaChapa(item.c, viceLista) : null,
-      alts: fila.slice(1, 3),
-    };
-  }
-  ESTADO.sugeridos = { itens: sugeridos, extras: extrasSug };
-
   alvo.innerHTML = "";
   faixa.innerHTML = "";
   faixa.hidden = false;
@@ -714,8 +685,8 @@ async function renderizarUrna() {
   let nomeados = 0;
   for (const def of SLOTS_URNA) {
     const manual = ESTADO.dignos[def.id];
-    const item = manual ? manual.item : sugeridos[def.id];
-    const extras = manual ? (manual.extras || extrasDaChapa(def, item)) : extrasSug[def.id];
+    const item = manual ? manual.item : null;
+    const extras = manual ? (manual.extras || extrasDaChapa(def, item)) : { alts: [] };
     if (manual) nomeados += 1;
     ESTADO.hallAtual.push({ def, item, extras, nomeado: !!manual });
     const titulo = def.tituloDF && uf === "DF" && def.id === "dep-est" ? "Dep. distrital" : def.curto;
@@ -728,11 +699,6 @@ async function renderizarUrna() {
   $("#urna-contagem").textContent =
     `${uf} · ${nomeados}/${SLOTS_URNA.length} nomeados por você`;
   if (!ESTADO.escolhendoSlot) $("#aviso-escolha").classList.add("oculto");
-  if (!ESTADO.perfil) {
-    const aviso = criar("p", "dica");
-    aviso.textContent = "Sem o seu texto, as sugestões usam só o trabalho no cargo e a ficha do TSE. Escreva para apontar dignos à sua imagem.";
-    alvo.prepend(aviso);
-  }
 }
 
 function cardCandidato(item, posicao) {
@@ -1308,18 +1274,6 @@ async function baixarHall() {
   }, "image/png");
 }
 
-function aceitarSugestoes() {
-  const s = ESTADO.sugeridos;
-  if (!s || !s.itens) return;
-  for (const def of SLOTS_URNA) {
-    if (s.itens[def.id]) {
-      ESTADO.dignos[def.id] = { item: s.itens[def.id], extras: s.extras[def.id] };
-    }
-  }
-  salvarDignos();
-  renderizarUrna();
-}
-
 function limparHall() {
   ESTADO.dignos = {};
   ESTADO.escolhendoSlot = null;
@@ -1372,7 +1326,6 @@ async function iniciar() {
   }
 
   if ($("#baixar-hall")) $("#baixar-hall").onclick = baixarHall;
-  if ($("#aceitar-sugestoes")) $("#aceitar-sugestoes").onclick = aceitarSugestoes;
   if ($("#limpar-hall")) $("#limpar-hall").onclick = limparHall;
   $("#calcular").onclick = aplicarTexto;
   $("#texto").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) aplicarTexto(); };
