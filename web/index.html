@@ -3,39 +3,52 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dignos — o voto é uma arma. Só entrega a quem for digno.</title>
-<meta name="description" content="Monte o Hall dos Dignos: escolha um candidato por cargo, veja o histórico público e baixe um PNG com os números para levar à urna.">
+<title>Dignos — o voto é uma arma. Só o digno empunha.</title>
+<meta name="description" content="O voto é uma arma. Monte o Hall dos Dignos: nomeie um por cargo, confira o histórico público e leve os números à urna.">
+<meta name="theme-color" content="#0a0907">
+<meta property="og:title" content="Dignos — o voto é uma arma">
+<meta property="og:description" content="Excalibur não se entrega a qualquer um. Mjölnir também não. Você nomeia o digno de cada cargo.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="marca.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="topo">
   <div class="faixa">
-    <div class="marca">
-      <span class="logo" aria-hidden="true">⚔</span>
+    <a class="marca" href="#topo">
+      <img class="logo" src="marca.svg" alt="" width="38" height="38">
       <div>
         <strong>Dignos</strong>
         <small>o voto é uma arma — só o digno empunha</small>
       </div>
-    </div>
+    </a>
     <nav>
-      <a href="#urna">Hall dos Dignos</a>
-      <a href="#ranking">Quem está no cargo</a>
-      <a href="#metodo">Como é calculado</a>
+      <a href="#urna">Hall</a>
+      <a href="#cedula">Candidatos</a>
+      <a href="#ranking">Quem empunha hoje</a>
+      <a href="#metodo">O julgamento</a>
       <a href="#fontes">Fontes</a>
     </nav>
   </div>
 </header>
 
-<main>
+<main id="topo">
   <section class="hero">
     <p class="epigrafe">Excalibur não se entrega a qualquer um. Mjölnir também não.</p>
     <h1>O seu voto é uma <em>arma</em>. Só entrega a quem for <em>digno</em>.</h1>
     <p class="sub">
-      Escreva o que você defende para o site ordenar os candidatos. O Hall
-      começa vazio: <strong>você nomeia</strong> o digno de cada cargo —
-      deputado federal, estadual, duas vagas de senador, governador e presidente.
-      Depois baixa um PNG com os <strong>números</strong> e leva pra urna.
+      Este site não escolhe por você. Ele organiza o dado público — votos,
+      presença, cota, sanções oficiais — para você julgar. O Hall começa
+      vazio: <strong>você nomeia</strong> o digno de cada cargo e leva os
+      <strong>números</strong> pra urna.
     </p>
 
     <div class="caixa-posicao">
@@ -53,12 +66,12 @@
         <button class="chip" data-exemplo="Sou progressista: direitos humanos, causa LGBT, igualdade racial, meio ambiente, povos indígenas e combate ao encarceramento em massa.">progressista</button>
         <button class="chip" data-exemplo="Quero acima de tudo transparência, combate à corrupção, prestação de contas e fim do orçamento secreto.">anticorrupção</button>
       </div>
-      <button id="calcular" class="botao-grande">Quem é digno da minha arma</button>
+      <button id="calcular" class="botao-grande">Julgar quem é digno da minha arma</button>
     </div>
 
     <div id="perfil" class="perfil oculto">
-      <h3>Seu perfil, como o site entendeu</h3>
-      <p class="dica">Isso é transparente de propósito: se o site entendeu errado, reescreva o texto.</p>
+      <h3>O que o site leu no seu texto</h3>
+      <p class="dica">Transparente de propósito: se entendeu errado, reescreva. Isso só ordena a lista — o digno continua sendo a sua escolha.</p>
       <div id="perfil-eixos" class="eixos-lista"></div>
       <p id="perfil-termos" class="termos"></p>
     </div>
@@ -70,11 +83,11 @@
       <span id="urna-contagem" class="contagem"></span>
     </div>
     <p class="dica">
-      Nenhum nome entra sozinho. Escolha o digno de cada cargo na lista abaixo
-      — ou toque em «Escolher digno» — e baixe o cartão com os números.
+      Seis cargos. Nenhuma sugestão. Você nomeia quem é digno de empunhar
+      o seu voto — e baixa o cartão com os números.
     </p>
     <div class="acoes-hall">
-      <button type="button" id="baixar-hall" class="botao-ouro">Baixar PNG da urna</button>
+      <button type="button" id="baixar-hall" class="botao-ouro">Levar o Hall à urna</button>
       <button type="button" id="limpar-hall" class="botao-slot ghost">Esvaziar o Hall</button>
     </div>
     <p id="aviso-escolha" class="aviso-escolha oculto"></p>
@@ -86,13 +99,13 @@
 
   <section id="cedula" class="painel">
     <div class="resumo-linha">
-      <h2>Todos os candidatos deste cargo</h2>
+      <h2>Quem pede a arma</h2>
       <span id="cedula-contagem" class="contagem"></span>
     </div>
     <p class="dica">
-      Não convenceu? Compare o cargo inteiro e toque em
-      <strong>Nomear digno</strong>. Quem já tem mandato federal aparece com o
-      que fez; quem nunca teve, só com a ficha do TSE.
+      Todos os candidatos do cargo. Toque em <strong>Nomear digno</strong>
+      para colocar no Hall. Quem já tem mandato federal aparece com o que
+      fez; estreante, só com a ficha do TSE — sem nota inventada.
     </p>
 
     <div class="escolha-uf">
@@ -109,7 +122,7 @@
   <section id="ranking" class="painel">
     <div class="controles">
       <div class="grupo">
-        <h4>O que mais importa pra você?</h4>
+        <h4>O que pesa no seu julgamento</h4>
         <div class="pesos" id="pesos"></div>
       </div>
       <div class="grupo">
@@ -130,10 +143,10 @@
     </div>
 
     <div class="resumo-linha">
-      <h2>Quem está no cargo hoje <span id="rotulo-contexto"></span></h2>
+      <h2>Quem empunha hoje <span id="rotulo-contexto"></span></h2>
       <span id="contagem" class="contagem"></span>
     </div>
-    <p class="dica">Os 513 deputados e 81 senadores em exercício, avaliados pelo mandato atual — inclusive quem não é candidato.</p>
+    <p class="dica">Os 513 deputados e 81 senadores em exercício — quem já está com o mandato na mão, inclusive quem não concorre.</p>
 
     <div id="top10" class="grade"></div>
 
@@ -150,7 +163,11 @@
   </section>
 
   <section id="metodo" class="painel texto">
-    <h2>Como é calculado (e o que este site não faz)</h2>
+    <h2>Como se julga um digno (e o que este site não faz)</h2>
+    <p class="sub metodo-lead">
+      Dignidade aqui não é um selo do site. É o seu julgamento, com números
+      que dá para conferir. Onde não há histórico, não inventamos nota.
+    </p>
     <div class="colunas">
       <div>
         <h3>Afinidade com você</h3>
@@ -190,9 +207,9 @@
       </div>
     </div>
     <p class="aviso">
-      Este site não é do governo, não recebe dinheiro de partido e não decide seu voto.
-      Ele organiza dado público para você decidir. Achou divergência? A fonte
-      original está linkada em cada número.
+      Este site não empunha no seu lugar. Não é do governo, não recebe
+      dinheiro de partido e não escolhe o digno. Organiza dado público
+      para você decidir. Achou divergência? A fonte original está em cada número.
     </p>
   </section>
 
@@ -211,7 +228,7 @@
 </div>
 
 <footer>
-  <p>Dignos — o voto é uma arma. Código aberto, dados abertos. Você decide quem empunha.</p>
+  <p>Dignos — o voto é uma arma. Código aberto, dados abertos. Você decide quem é digno.</p>
 </footer>
 
 <script src="app.js"></script>

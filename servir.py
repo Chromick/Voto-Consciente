@@ -41,7 +41,7 @@ def main():
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", porta), partial(Handler)) as srv:
         url = f"http://localhost:{porta}"
-        print(f"Voto Consciente rodando em {url}  (Ctrl+C para parar)")
+        print(f"Dignos rodando em {url}  (Ctrl+C para parar)")
         try:
             webbrowser.open(url)
         except Exception:

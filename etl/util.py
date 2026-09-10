@@ -23,7 +23,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 CACHE = RAIZ / "cache"
 DADOS = RAIZ / "dados"
 
-UA = "voto-consciente/1.0 (projeto civico de dados abertos)"
+UA = "dignos/1.0 (projeto civico de dados abertos; github.com/Chromick/Voto-Consciente)"
 TIMEOUT = 180
 
 csv.field_size_limit(min(sys.maxsize, 2**31 - 1))

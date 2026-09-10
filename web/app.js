@@ -1,4 +1,4 @@
-﻿/* Voto Consciente - toda a interacao roda no navegador, lendo JSON estatico. */
+﻿/* Dignos — o voto e uma arma. Toda a interacao roda no navegador, lendo JSON estatico. */
 
 const ESTADO = {
   lexico: null,
@@ -18,7 +18,7 @@ const ESTADO = {
 };
 
 const ROTULO_PESO = {
-  afinidade: "Combinar comigo",
+  afinidade: "Alinhar comigo",
   presenca: "Presença",
   participacao: "Vota nas sessões",
   producao: "Projetos próprios",
@@ -182,7 +182,7 @@ function cardParlamentar(item, posicao) {
 
   card.appendChild(criar("div", "selo-geral", `${Math.round(geral)}<small>NOTA GERAL</small>`));
   if (af) {
-    const selo = criar("div", "selo-afinidade", `${af.valor}% combina com você`);
+    const selo = criar("div", "selo-afinidade", `${af.valor}% alinha com você`);
     selo.title = `Proximidade bruta ${af.bruto}% em ${af.eixosUsados} eixos, ` +
       `ajustada pela confiança dos dados (${Math.round(af.confianca * 100)}%).`;
     card.appendChild(selo);
@@ -234,8 +234,8 @@ function renderizar() {
 
   $("#contagem").textContent = `${lista.length} parlamentares no cálculo`;
   $("#rotulo-contexto").textContent = ESTADO.perfil
-    ? "para o seu perfil"
-    : "por qualificação (escreva sua posição acima para personalizar)";
+    ? "— julgados pelo que você defende"
+    : "— pelo que dá para medir (escreva sua posição acima)";
 
   const corpo = $("#tabela tbody");
   corpo.innerHTML = "";
@@ -651,7 +651,7 @@ async function renderizarUrna() {
   const faixa = $("#numeros-urna");
   const uf = $("#c-uf") && $("#c-uf").value;
   if (!alvo || !uf || !ESTADO.cedula) return;
-  alvo.innerHTML = "<p class='carregando'>Montando a urna do seu estado...</p>";
+  alvo.innerHTML = "<p class='carregando'>Abrindo o Hall do seu estado...</p>";
   faixa.hidden = true;
 
   const depEst = cargoEstadual(uf);
@@ -697,7 +697,7 @@ async function renderizarUrna() {
   }
 
   $("#urna-contagem").textContent =
-    `${uf} · ${nomeados}/${SLOTS_URNA.length} nomeados por você`;
+    `${uf} · ${nomeados}/${SLOTS_URNA.length} dignos nomeados por você`;
   if (!ESTADO.escolhendoSlot) $("#aviso-escolha").classList.add("oculto");
 }
 
@@ -725,7 +725,7 @@ function cardCandidato(item, posicao) {
     card.appendChild(seloEstreante());
   }
   if (af) {
-    const selo = criar("div", "selo-afinidade", `${af.valor}% combina com você`);
+    const selo = criar("div", "selo-afinidade", `${af.valor}% alinha com você`);
     selo.title = af.viaPartido
       ? "Estimado pela média do partido — não há votos deste candidato para medir."
       : `Proximidade bruta ${af.bruto}% em ${af.eixosUsados} eixos.`;
@@ -1010,7 +1010,7 @@ async function abrirDetalhe(id) {
         <h2>${p.nome}</h2>
         <div class="dica">${p.cargo} · ${p.partido || "sem partido"} · ${p.uf}
           ${p.nome_civil ? `<br>Nome civil: ${p.nome_civil}` : ""}</div>
-        ${af ? `<div class="selo-afinidade">${af.valor}% combina com você</div>` : ""}
+        ${af ? `<div class="selo-afinidade">${af.valor}% alinha com você</div>` : ""}
       </div>
     </div>`);
 
@@ -1199,12 +1199,14 @@ function desenharHall(ctx, W, H) {
   ctx.strokeRect(28, 28, W - 56, H - 56);
 
   ctx.fillStyle = "#e3c565";
-  ctx.font = "700 22px Georgia, serif";
+  ctx.font = "700 20px Cinzel, Georgia, serif";
   ctx.textAlign = "center";
-  ctx.fillText("O VOTO É UMA ARMA", W / 2, 86);
+  ctx.fillText("DIGNOS", W / 2, 72);
+  ctx.font = "700 18px Cinzel, Georgia, serif";
+  ctx.fillText("O VOTO É UMA ARMA", W / 2, 102);
   ctx.fillStyle = "#f4ead0";
-  ctx.font = "700 64px Georgia, serif";
-  ctx.fillText("HALL DOS DIGNOS", W / 2, 160);
+  ctx.font = "700 58px Cinzel, Georgia, serif";
+  ctx.fillText("HALL DOS DIGNOS", W / 2, 168);
   const uf = $("#c-uf").value;
   ctx.fillStyle = "#c4b48a";
   ctx.font = "600 26px Segoe UI, sans-serif";
@@ -1249,10 +1251,13 @@ function desenharHall(ctx, W, H) {
   ctx.fillText("Excalibur não se entrega a qualquer um. Mjölnir também não.", W / 2, H - 90);
   ctx.fillStyle = "#7a7260";
   ctx.font = "500 18px Segoe UI, sans-serif";
-  ctx.fillText("Dignos  ·  dado público  ·  você decide quem empunha", W / 2, H - 54);
+  ctx.fillText("Dignos  ·  dado público  ·  você decide quem é digno", W / 2, H - 54);
 }
 
 async function baixarHall() {
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (e) { /* segue com Georgia */ }
+  }
   if (!ESTADO.hallAtual.length) {
     await renderizarUrna();
   }

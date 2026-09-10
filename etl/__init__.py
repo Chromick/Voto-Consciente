@@ -1,1 +1,1 @@
-"""ETL do Voto Consciente: coleta de dados publicos brasileiros."""
+"""ETL do Dignos: coleta de dados publicos brasileiros."""

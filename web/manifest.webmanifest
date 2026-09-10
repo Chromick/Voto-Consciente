@@ -1,0 +1,13 @@
+{
+  "name": "Dignos",
+  "short_name": "Dignos",
+  "description": "O voto é uma arma. Só o digno empunha.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0907",
+  "theme_color": "#0a0907",
+  "icons": [
+    { "src": "favicon.svg", "type": "image/svg+xml", "sizes": "any" }
+  ]
+}

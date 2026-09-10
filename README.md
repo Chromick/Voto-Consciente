@@ -1,20 +1,20 @@
-# Voto Consciente
+# Dignos
 
-Sua **cédula da eleição de 2026** montada só com dado público oficial. Você
-escolhe o estado e vê, cargo por cargo, quem pediu registro — presidente,
-governador, senador, deputado federal e deputado estadual/distrital — ordenado
-por quanto cada um combina com o que você escreveu e por como trabalhou de fato:
-como votou, quanto gastou de dinheiro público, quantas sessões faltou, quantos
-projetos apresentou e o que a Justiça Eleitoral registra sobre a candidatura.
+O voto é uma arma. Excalibur não se entrega a qualquer um. Mjölnir também não.
+**Só o digno empunha.**
+
+O site não escolhe por você. Organiza dado público oficial — votos, presença,
+cota, sanções — para você nomear o digno de cada cargo e baixar o **Hall dos
+Dignos** com os números para a urna.
 
 Você escreve com suas palavras o que defende ("sou conservador e cristão", "sou
-socialista, defendo o SUS", "quero acima de tudo transparência") e o site ordena
-os candidatos de cada cargo.
+socialista, defendo o SUS", "quero acima de tudo transparência"). A lista
+ordena. O Hall começa vazio: o digno entra só quando você nomeia.
 
-**A regra mais importante do projeto:** a maior parte dos 20.911 candidatos
-nunca teve mandato federal, então não existe voto, presença nem cota para
-avaliar. Nesses casos o site escreve **"sem nota"**, separa essas pessoas num
-bloco à parte e mostra só o que o TSE informa. Ele nunca finge saber.
+**A regra mais importante:** a maior parte dos 20.911 candidatos nunca teve
+mandato federal, então não existe voto, presença nem cota para avaliar. Nesses
+casos o site marca **1º mandato**, sem inventar nota, e mostra só o que o TSE
+informa. Ele nunca finge saber.
 
 Custo para rodar e publicar: **zero**. Nenhum servidor para pagar e nenhuma
 chave de API obrigatória.

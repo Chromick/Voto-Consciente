@@ -64,7 +64,7 @@ def main() -> None:
 
     anos = sorted(set(args.anos))
     casas = {c.strip() for c in args.casas.split(",") if c.strip()}
-    log(f"== Voto Consciente | anos={anos} casas={sorted(casas)}")
+    log(f"== Dignos | anos={anos} casas={sorted(casas)}")
 
     pessoas: dict[str, dict] = {}
     posicao_partidos: dict[str, dict] = {}
