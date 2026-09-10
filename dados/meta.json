@@ -1,5 +1,5 @@
 {
- "gerado_em": "2026-09-09T20:44:21",
+ "gerado_em": "2026-09-10T01:50:12",
  "anos": [
   2025,
   2026
@@ -25,6 +25,11 @@
    "nome": "Senado Federal - Dados Abertos",
    "url": "https://legis.senado.leg.br/dadosabertos/",
    "usado": "senadores, votacoes nominais, licencas, autorias"
+  },
+  {
+   "nome": "TSE - Divulgacao de Candidaturas e Contas Eleitorais",
+   "url": "https://divulgacandcontas.tse.jus.br/divulga/",
+   "usado": "candidaturas de 2026 em todos os cargos: situacao do registro, patrimonio declarado, ocupacao, escolaridade e coligacao"
   },
   {
    "nome": "TCU - Inabilitados",
